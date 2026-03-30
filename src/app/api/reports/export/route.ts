@@ -36,17 +36,44 @@ export async function GET(req: NextRequest) {
     orderBy: { name: 'asc' },
   })
 
-  const rows = await Promise.all(
-    members.map(async (member) => {
-      const [issuesCreated, issuesAssigned, issuesResolved, issuesStillOpen] = await Promise.all([
-        prisma.issue.count({ where: { creatorTeamMemberId: member.id, createdAt: { gte: start, lte: end }, repository: repoFilter } }),
-        prisma.issueAssignee.count({ where: { teamMemberId: member.id, issue: { createdAt: { gte: start, lte: end }, repository: repoFilter } } }),
-        prisma.issueAssignee.count({ where: { teamMemberId: member.id, issue: { state: 'CLOSED', closedAt: { gte: start, lte: end }, repository: repoFilter } } }),
-        prisma.issueAssignee.count({ where: { teamMemberId: member.id, issue: { state: 'OPEN', repository: repoFilter } } }),
-      ])
-      return [member.name, member.role, issuesCreated, issuesAssigned, issuesResolved, issuesStillOpen]
-    })
-  )
+  const memberIds = members.map((m) => m.id)
+
+  const [createdCounts, assignedCounts, resolvedCounts, stillOpenCounts] = await Promise.all([
+    prisma.issue.groupBy({
+      by: ['creatorTeamMemberId'],
+      where: { creatorTeamMemberId: { in: memberIds }, createdAt: { gte: start, lte: end }, repository: repoFilter },
+      _count: { id: true },
+    }),
+    prisma.issueAssignee.groupBy({
+      by: ['teamMemberId'],
+      where: { teamMemberId: { in: memberIds }, issue: { createdAt: { gte: start, lte: end }, repository: repoFilter } },
+      _count: { issueId: true },
+    }),
+    prisma.issueAssignee.groupBy({
+      by: ['teamMemberId'],
+      where: { teamMemberId: { in: memberIds }, issue: { state: 'CLOSED', closedAt: { gte: start, lte: end }, repository: repoFilter } },
+      _count: { issueId: true },
+    }),
+    prisma.issueAssignee.groupBy({
+      by: ['teamMemberId'],
+      where: { teamMemberId: { in: memberIds }, issue: { state: 'OPEN', repository: repoFilter } },
+      _count: { issueId: true },
+    }),
+  ])
+
+  const createdMap = new Map(createdCounts.map((r) => [r.creatorTeamMemberId, r._count.id]))
+  const assignedMap = new Map(assignedCounts.map((r) => [r.teamMemberId, r._count.issueId]))
+  const resolvedMap = new Map(resolvedCounts.map((r) => [r.teamMemberId, r._count.issueId]))
+  const stillOpenMap = new Map(stillOpenCounts.map((r) => [r.teamMemberId, r._count.issueId]))
+
+  const rows = members.map((member) => [
+    member.name,
+    member.role,
+    createdMap.get(member.id) ?? 0,
+    assignedMap.get(member.id) ?? 0,
+    resolvedMap.get(member.id) ?? 0,
+    stillOpenMap.get(member.id) ?? 0,
+  ])
 
   const header = 'Name,Role,Issues Created,Issues Assigned,Issues Resolved,Issues Still Open'
   const csvRows = rows.map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))

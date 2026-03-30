@@ -15,12 +15,7 @@ export interface GitLabIssue {
   references: { full: string }
 }
 
-async function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
 async function fetchGitLabPage(url: string): Promise<{ items: GitLabIssue[]; nextPage: string | null }> {
-  await sleep(500)
   const res = await fetch(url, {
     headers: { 'PRIVATE-TOKEN': GITLAB_GROUP_TOKEN },
   })

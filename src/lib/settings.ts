@@ -11,7 +11,13 @@ export const DEFAULT_THRESHOLDS: WorkloadThresholds = {
   mediumMax: 7,
 }
 
+let cachedThresholds: WorkloadThresholds | null = null
+let cacheExpiry = 0
+const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+
 export async function getWorkloadThresholds(): Promise<WorkloadThresholds> {
+  if (cachedThresholds && Date.now() < cacheExpiry) return cachedThresholds
+
   const rows = await prisma.setting.findMany({
     where: { key: { in: ['workload_low_max', 'workload_medium_max'] } },
   })
@@ -21,10 +27,12 @@ export async function getWorkloadThresholds(): Promise<WorkloadThresholds> {
   const lowMax = parseInt(map['workload_low_max'] ?? '', 10)
   const mediumMax = parseInt(map['workload_medium_max'] ?? '', 10)
 
-  return {
+  cachedThresholds = {
     lowMax: isNaN(lowMax) ? DEFAULT_THRESHOLDS.lowMax : lowMax,
     mediumMax: isNaN(mediumMax) ? DEFAULT_THRESHOLDS.mediumMax : mediumMax,
   }
+  cacheExpiry = Date.now() + CACHE_TTL_MS
+  return cachedThresholds
 }
 
 export async function setWorkloadThresholds(thresholds: WorkloadThresholds): Promise<void> {
@@ -40,6 +48,7 @@ export async function setWorkloadThresholds(thresholds: WorkloadThresholds): Pro
       create: { key: 'workload_medium_max', value: String(thresholds.mediumMax) },
     }),
   ])
+  cachedThresholds = null
 }
 
 export function getWorkloadLevel(

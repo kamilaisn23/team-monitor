@@ -40,13 +40,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const stateFilter = state !== 'all' ? { state: state.toUpperCase() as 'OPEN' | 'CLOSED' } : {}
 
   let issueIds: string[] = []
+  let assignedIssueIds = new Set<string>()
+  let createdIssueIds = new Set<string>()
 
   if (type === 'assigned' || type === 'all') {
     const assignedIssues = await prisma.issueAssignee.findMany({
       where: { teamMemberId: id },
       select: { issueId: true },
     })
-    issueIds = [...issueIds, ...assignedIssues.map((a) => a.issueId)]
+    assignedIssueIds = new Set(assignedIssues.map((a) => a.issueId))
+    issueIds = [...issueIds, ...assignedIssueIds]
   }
 
   if (type === 'created' || type === 'all') {
@@ -54,7 +57,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       where: { creatorTeamMemberId: id },
       select: { id: true },
     })
-    issueIds = [...issueIds, ...createdIssues.map((i) => i.id)]
+    createdIssueIds = new Set(createdIssues.map((i) => i.id))
+    issueIds = [...issueIds, ...createdIssueIds]
   }
 
   issueIds = [...new Set(issueIds)]
@@ -80,13 +84,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     }),
   ])
 
-  const assigneeIds = new Set(
-    (await prisma.issueAssignee.findMany({ where: { teamMemberId: id }, select: { issueId: true } })).map((a) => a.issueId)
-  )
-  const creatorIds = new Set(
-    (await prisma.issue.findMany({ where: { creatorTeamMemberId: id, id: { in: issueIds } }, select: { id: true } })).map((i) => i.id)
-  )
-
   return NextResponse.json({
     data: issues.map((issue) => ({
       id: issue.id,
@@ -97,8 +94,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       repository: { id: issue.repository.id, name: issue.repository.name },
       createdAt: issue.createdAt,
       closedAt: issue.closedAt,
-      isCreator: creatorIds.has(issue.id),
-      isAssignee: assigneeIds.has(issue.id),
+      isCreator: createdIssueIds.has(issue.id),
+      isAssignee: assignedIssueIds.has(issue.id),
     })),
     total,
     page,

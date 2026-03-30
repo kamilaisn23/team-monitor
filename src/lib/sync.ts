@@ -6,16 +6,21 @@ import {
     parseRepoFromGitLabIssue,
 } from "@/lib/gitlab";
 
+const repoCache = new Map<string, { id: string }>()
+
 async function upsertRepository(
     platform: "GITHUB" | "GITLAB",
     name: string,
     url: string,
 ) {
-    return prisma.repository.upsert({
+    if (repoCache.has(url)) return repoCache.get(url)!
+    const repo = await prisma.repository.upsert({
         where: { url },
         update: {},
         create: { platform, name, url, ignored: false },
     });
+    repoCache.set(url, repo)
+    return repo
 }
 
 async function resolveUsernames() {
@@ -38,16 +43,26 @@ async function resolveUsernames() {
         where: { creatorTeamMemberId: null },
         include: { repository: { select: { platform: true } } },
     });
+    const issueUpdatesByMember = new Map<string, string[]>();
     for (const issue of unresolvedIssues) {
         const map =
             issue.repository.platform === "GITHUB" ? githubMap : gitlabMap;
         const memberId = map.get(issue.creatorUsername);
         if (memberId) {
-            await prisma.issue.update({
-                where: { id: issue.id },
-                data: { creatorTeamMemberId: memberId },
-            });
+            const ids = issueUpdatesByMember.get(memberId) ?? [];
+            ids.push(issue.id);
+            issueUpdatesByMember.set(memberId, ids);
         }
+    }
+    if (issueUpdatesByMember.size > 0) {
+        await prisma.$transaction(
+            [...issueUpdatesByMember.entries()].map(([memberId, issueIds]) =>
+                prisma.issue.updateMany({
+                    where: { id: { in: issueIds } },
+                    data: { creatorTeamMemberId: memberId },
+                }),
+            ),
+        );
     }
 
     // Resolve IssueAssignees
@@ -57,6 +72,7 @@ async function resolveUsernames() {
             issue: { include: { repository: { select: { platform: true } } } },
         },
     });
+    const assigneeUpdatesByMember = new Map<string, string[]>();
     for (const assignee of unresolvedAssignees) {
         const map =
             assignee.issue.repository.platform === "GITHUB"
@@ -64,11 +80,20 @@ async function resolveUsernames() {
                 : gitlabMap;
         const memberId = map.get(assignee.platformUsername);
         if (memberId) {
-            await prisma.issueAssignee.update({
-                where: { id: assignee.id },
-                data: { teamMemberId: memberId },
-            });
+            const ids = assigneeUpdatesByMember.get(memberId) ?? [];
+            ids.push(assignee.id);
+            assigneeUpdatesByMember.set(memberId, ids);
         }
+    }
+    if (assigneeUpdatesByMember.size > 0) {
+        await prisma.$transaction(
+            [...assigneeUpdatesByMember.entries()].map(([memberId, assigneeIds]) =>
+                prisma.issueAssignee.updateMany({
+                    where: { id: { in: assigneeIds } },
+                    data: { teamMemberId: memberId },
+                }),
+            ),
+        );
     }
 }
 
@@ -102,6 +127,7 @@ export type SyncProgressEvent =
 
 export async function runSync(onProgress?: (event: SyncProgressEvent) => void) {
     const startTime = Date.now();
+    repoCache.clear();
     console.log(`[sync] Starting sync at ${new Date().toISOString()}`);
 
     const members = await prisma.teamMember.findMany({

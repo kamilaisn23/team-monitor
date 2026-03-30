@@ -19,7 +19,6 @@ async function sleep(ms: number) {
 }
 
 async function fetchPage(url: string, attempt = 0): Promise<Response> {
-  await sleep(2000)
   const res = await fetch(url, {
     headers: {
       Authorization: `Bearer ${GITHUB_ORG_TOKEN}`,

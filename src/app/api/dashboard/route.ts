@@ -38,27 +38,36 @@ export async function GET(req: NextRequest) {
         orderBy: { name: "asc" },
     });
 
-    const thresholds = await getWorkloadThresholds();
+    const memberIds = members.map((m) => m.id);
 
-    const data = await Promise.all(
-        members.map(async (member) => {
-            const currentLoad = await prisma.issueAssignee.count({
-                where: {
-                    teamMemberId: member.id,
-                    issue: { state: "OPEN", repository: repoFilter },
-                },
-            });
-            return {
-                memberId: member.id,
-                name: member.name,
-                avatarUrl: member.avatarUrl,
-                role: member.role,
-                teams: member.teams.map((t) => t.team),
-                currentLoad,
-                workloadLevel: getWorkloadLevel(currentLoad, thresholds),
-            };
+    const [thresholds, loadCounts] = await Promise.all([
+        getWorkloadThresholds(),
+        prisma.issueAssignee.groupBy({
+            by: ["teamMemberId"],
+            where: {
+                teamMemberId: { in: memberIds },
+                issue: { state: "OPEN", repository: repoFilter },
+            },
+            _count: { issueId: true },
         }),
+    ]);
+
+    const loadMap = new Map(
+        loadCounts.map((r) => [r.teamMemberId, r._count.issueId]),
     );
+
+    const data = members.map((member) => {
+        const currentLoad = loadMap.get(member.id) ?? 0;
+        return {
+            memberId: member.id,
+            name: member.name,
+            avatarUrl: member.avatarUrl,
+            role: member.role,
+            teams: member.teams.map((t) => t.team),
+            currentLoad,
+            workloadLevel: getWorkloadLevel(currentLoad, thresholds),
+        };
+    });
 
     return NextResponse.json(data);
 }
