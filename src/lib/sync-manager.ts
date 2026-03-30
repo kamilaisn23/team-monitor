@@ -1,6 +1,4 @@
 import { Worker } from "worker_threads";
-import path from "path";
-import fs from "fs";
 import type { SyncProgressEvent } from "@/lib/sync";
 
 export type JobStatus = "running" | "done" | "error";
@@ -23,19 +21,16 @@ function cleanupJob(jobId: string) {
     setTimeout(() => jobs.delete(jobId), JOB_TTL_MS);
 }
 
-// Resolve the compiled worker script path.
-// In standalone/production build it is at <cwd>/scripts/sync-worker.js
-// The scripts/ folder is copied into the container at the project root.
+// Worker path is supplied via SYNC_WORKER_PATH env var (set in Dockerfile).
+// Using an env var avoids static path expressions like process.cwd() or __dirname
+// which cause Turbopack's NFT to trace the entire scripts/ directory at build time.
 function resolveWorkerPath(): string {
-    const candidates = [
-        path.resolve(process.cwd(), "scripts", "sync-worker.js"),
-        path.resolve(__dirname, "..", "scripts", "sync-worker.js"),
-    ];
-    for (const p of candidates) {
-        if (fs.existsSync(p)) return p;
-    }
-    // fallback — will throw a meaningful error when the worker is spawned
-    return candidates[0]!;
+    const envPath = process.env.SYNC_WORKER_PATH;
+    if (envPath) return envPath;
+    throw new Error(
+        "SYNC_WORKER_PATH environment variable is not set. " +
+        "Set it to the absolute path of the compiled scripts/sync-worker.js file.",
+    );
 }
 
 export function createSyncJob(): string {

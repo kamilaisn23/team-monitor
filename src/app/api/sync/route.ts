@@ -1,9 +1,15 @@
 import { auth } from "@/lib/auth";
 import type { SyncJob } from "@/lib/sync-manager";
 
+// sync-manager is loaded at runtime from a pre-compiled CJS bundle (scripts-dist/sync-manager.js),
+// not bundled into the Next.js server. This prevents Turbopack from treating it as a
+// worker-thread entry point and tracing build-worker.mjs / esbuild binaries at build time.
 function getSyncManager() {
+    const managerPath = process.env.SYNC_MANAGER_PATH;
+    if (!managerPath)
+        throw new Error("SYNC_MANAGER_PATH environment variable is not set.");
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    return require(/* turbopackIgnore: true */ "@/lib/sync-manager") as {
+    return require(/* turbopackIgnore: true */ managerPath) as {
         createSyncJob: () => string;
         getJob: (id: string) => SyncJob | undefined;
         isJobRunning: () => boolean;
