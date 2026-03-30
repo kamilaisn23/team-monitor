@@ -1,40 +1,41 @@
-version: '3.9'
-
 services:
-  db:
-    image: postgres:16
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: team_monitor
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER}']
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    db:
+        image: postgres:16
+        restart: unless-stopped
+        ports:
+            - "5432:5432"
+        env_file: .env
+        environment:
+            POSTGRES_DB: team_monitor
+            POSTGRES_USER: ${POSTGRES_USER}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+        volumes:
+            - pgdata:/var/lib/postgresql/data
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
 
-  app:
-    build: .
-    restart: unless-stopped
-    ports:
-      - '3000:3000'
-    depends_on:
-      db:
-        condition: service_healthy
-    env_file: .env
-    command: node server.js
+    app:
+        build: .
+        restart: unless-stopped
+        ports:
+            - "3000:3000"
+        depends_on:
+            db:
+                condition: service_healthy
+        env_file: .env
+        command: node server.js
 
-  sync:
-    build: .
-    restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-    env_file: .env
-    command: npx ts-node --project tsconfig.server.json scripts/sync-cron.ts
+    sync:
+        build: .
+        restart: unless-stopped
+        depends_on:
+            db:
+                condition: service_healthy
+        env_file: .env
+        command: npx ts-node --project tsconfig.server.json scripts/sync-cron.ts
 
 volumes:
-  pgdata:
+    pgdata:

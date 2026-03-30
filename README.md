@@ -100,7 +100,7 @@ npx prisma migrate dev --name init
 ```bash
 docker compose up db -d
 # Wait for it to be healthy, then:
-DATABASE_URL=postgresql://user:password@localhost:5432/team_monitor npx prisma migrate dev --name init
+npx prisma migrate dev --name init
 ```
 
 ### 4. Generate Prisma client
