@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
     const repoTeamId = searchParams.get("repoTeamId");
     const repositoryId = searchParams.get("repositoryId");
     const platform = searchParams.get("platform") || "all";
+    const activeParam = searchParams.get("active");
 
     const repoFilter = {
         ignored: false,
@@ -31,6 +32,7 @@ export async function GET(req: NextRequest) {
         where: {
             role: { not: "UNASSIGNED" },
             ...(teamId ? { teams: { some: { teamId } } } : {}),
+            ...(activeParam !== null ? { isActive: activeParam === "true" } : {}),
         },
         include: {
             teams: { include: { team: { select: { id: true, name: true } } } },
@@ -63,6 +65,7 @@ export async function GET(req: NextRequest) {
             name: member.name,
             avatarUrl: member.avatarUrl,
             role: member.role,
+            isActive: member.isActive,
             teams: member.teams.map((t) => t.team),
             currentLoad,
             workloadLevel: getWorkloadLevel(currentLoad, thresholds),

@@ -15,6 +15,7 @@ interface Member {
     usernameGitlab: string | null;
     role: string;
     avatarUrl: string | null;
+    isActive: boolean;
     lastLoginAt: string | null;
     teams: { id: string; name: string }[];
 }
@@ -25,16 +26,21 @@ export default function AdminMembersClient() {
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [page, setPage] = useState(1);
+    const [activeFilter, setActiveFilter] = useState<"all" | "active" | "inactive">("all");
+    const [togglingId, setTogglingId] = useState<string | null>(null);
 
     const load = useCallback(() => {
         setLoading(true);
-        fetch("/api/members")
+        const params = new URLSearchParams();
+        if (activeFilter === "active") params.set("active", "true");
+        if (activeFilter === "inactive") params.set("active", "false");
+        fetch(`/api/members?${params.toString()}`)
             .then((r) => r.json())
             .then((data) => {
                 setMembers(data as Member[]);
                 setLoading(false);
             });
-    }, []);
+    }, [activeFilter]);
 
     useEffect(() => {
         load();
@@ -45,6 +51,17 @@ export default function AdminMembersClient() {
         await fetch(`/api/members/${id}`, { method: "DELETE" });
         setDeleteConfirm(null);
         setDeleting(false);
+        load();
+    };
+
+    const handleToggleActive = async (member: Member) => {
+        setTogglingId(member.id);
+        await fetch(`/api/members/${member.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ isActive: !member.isActive }),
+        });
+        setTogglingId(null);
         load();
     };
 
@@ -76,6 +93,24 @@ export default function AdminMembersClient() {
                 </Link>
             </div>
 
+            {/* Filters */}
+            <div className="mb-4 flex items-center gap-2">
+                <span className="text-sm text-body dark:text-dark-6">Status:</span>
+                {(["all", "active", "inactive"] as const).map((opt) => (
+                    <button
+                        key={opt}
+                        onClick={() => { setActiveFilter(opt); setPage(1); }}
+                        className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
+                            activeFilter === opt
+                                ? "bg-primary text-white"
+                                : "border border-stroke bg-white text-body hover:bg-gray-2 dark:border-stroke-dark dark:bg-gray-dark dark:text-dark-6"
+                        }`}
+                    >
+                        {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                    </button>
+                ))}
+            </div>
+
             <div className="overflow-hidden rounded-xl border border-stroke bg-white dark:border-stroke-dark dark:bg-gray-dark">
                 {loading ? (
                     <div className="p-8 text-center text-body">Loading...</div>
@@ -85,6 +120,7 @@ export default function AdminMembersClient() {
                             <tr className="border-b border-stroke bg-gray-2 dark:border-stroke-dark dark:bg-[#1a2535]">
                                 {[
                                     "Member",
+                                    "Status",
                                     "Role",
                                     "GitHub",
                                     "GitLab",
@@ -119,20 +155,31 @@ export default function AdminMembersClient() {
                                                     alt={member.name}
                                                     width={32}
                                                     height={32}
-                                                    className="rounded-full"
+                                                    className={`rounded-full ${!member.isActive ? "opacity-50 grayscale" : ""}`}
                                                 />
                                             ) : (
-                                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
+                                                <div className={`flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary ${!member.isActive ? "opacity-50" : ""}`}>
                                                     {member.name[0]?.toUpperCase()}
                                                 </div>
                                             )}
                                             <Link
                                                 href={`/members/${member.id}`}
-                                                className="font-medium text-dark hover:text-primary dark:text-white"
+                                                className={`font-medium hover:text-primary ${member.isActive ? "text-dark dark:text-white" : "text-body dark:text-dark-6"}`}
                                             >
                                                 {member.name}
                                             </Link>
                                         </div>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <span
+                                            className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                                                member.isActive
+                                                    ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                                                    : "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+                                            }`}
+                                        >
+                                            {member.isActive ? "Active" : "Inactive"}
+                                        </span>
                                     </td>
                                     <td className="px-4 py-3">
                                         <span
@@ -171,6 +218,21 @@ export default function AdminMembersClient() {
                                             >
                                                 Edit
                                             </Link>
+                                            <button
+                                                onClick={() => handleToggleActive(member)}
+                                                disabled={togglingId === member.id}
+                                                className={`rounded px-2 py-1 text-xs disabled:opacity-50 ${
+                                                    member.isActive
+                                                        ? "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+                                                        : "text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/20"
+                                                }`}
+                                            >
+                                                {togglingId === member.id
+                                                    ? "..."
+                                                    : member.isActive
+                                                    ? "Deactivate"
+                                                    : "Activate"}
+                                            </button>
                                             <button
                                                 onClick={() =>
                                                     setDeleteConfirm(member.id)

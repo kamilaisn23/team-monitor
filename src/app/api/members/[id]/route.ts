@@ -25,6 +25,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     usernameGitlab: member.usernameGitlab,
     role: member.role,
     avatarUrl: member.avatarUrl,
+    isActive: member.isActive,
     createdAt: member.createdAt,
     lastLoginAt: member.lastLoginAt,
     teams: member.teams.map((t) => t.team),
@@ -37,7 +38,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!session.user.isSuperadmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
-  const body = await req.json() as { name?: string; usernameGithub?: string; usernameGitlab?: string; role?: string }
+  const body = await req.json() as { name?: string; usernameGithub?: string; usernameGitlab?: string; role?: string; isActive?: boolean }
 
   const existing = await prisma.teamMember.findUnique({ where: { id } })
   if (!existing) return NextResponse.json({ error: 'Member not found' }, { status: 404 })
@@ -55,6 +56,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(body.usernameGithub !== undefined ? { usernameGithub: body.usernameGithub?.trim() || null } : {}),
         ...(body.usernameGitlab !== undefined ? { usernameGitlab: body.usernameGitlab?.trim() || null } : {}),
         ...(body.role !== undefined ? { role: body.role as 'MANAGER' | 'DEVELOPER' | 'UNASSIGNED' } : {}),
+        ...(body.isActive !== undefined ? { isActive: Boolean(body.isActive) } : {}),
       },
       include: { teams: { include: { team: { select: { id: true, name: true } } } } },
     })

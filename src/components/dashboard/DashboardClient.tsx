@@ -11,6 +11,7 @@ interface DashboardMember {
     name: string;
     avatarUrl: string | null;
     role: string;
+    isActive: boolean;
     teams: { id: string; name: string }[];
     currentLoad: number;
     workloadLevel: WorkloadLevel;
@@ -29,6 +30,7 @@ export default function DashboardClient() {
     const [loading, setLoading] = useState(true);
     const [teamFilter, setTeamFilter] = useState("");
     const [platformFilter, setPlatformFilter] = useState("all");
+    const [activeFilter, setActiveFilter] = useState<"all" | "active" | "inactive">("active");
     const [teams, setTeams] = useState<{ id: string; name: string }[]>([]);
     const [repos, setRepos] = useState<{ id: string; name: string }[]>([]);
     const [repoFilter, setRepoFilter] = useState("");
@@ -50,6 +52,7 @@ export default function DashboardClient() {
         if (teamFilter) params.set("teamId", teamFilter);
         if (repoFilter) params.set("repositoryId", repoFilter);
         if (platformFilter !== "all") params.set("platform", platformFilter);
+        if (activeFilter !== "all") params.set("active", activeFilter === "active" ? "true" : "false");
         fetch(`/api/dashboard?${params.toString()}`)
             .then((r) => r.json())
             .then((data) => {
@@ -57,7 +60,7 @@ export default function DashboardClient() {
                 setLoading(false);
                 setPage(1);
             });
-    }, [teamFilter, repoFilter, platformFilter]);
+    }, [teamFilter, repoFilter, platformFilter, activeFilter]);
 
     const totalOpen = members.reduce((s, m) => s + m.currentLoad, 0);
     const highCount = members.filter((m) => m.workloadLevel === "high").length;
@@ -132,6 +135,15 @@ export default function DashboardClient() {
                     <option value="all">All Platforms</option>
                     <option value="github">GitHub</option>
                     <option value="gitlab">GitLab</option>
+                </select>
+                <select
+                    value={activeFilter}
+                    onChange={(e) => setActiveFilter(e.target.value as "all" | "active" | "inactive")}
+                    className="rounded-lg border border-stroke bg-white px-3 py-2 text-sm dark:border-stroke-dark dark:bg-gray-dark dark:text-white"
+                >
+                    <option value="active">Active Members</option>
+                    <option value="inactive">Inactive Members</option>
+                    <option value="all">All Members</option>
                 </select>
             </div>
 

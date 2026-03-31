@@ -18,6 +18,7 @@ export default function MemberForm({ memberId }: MemberFormProps) {
   const [usernameGithub, setUsernameGithub] = useState('')
   const [usernameGitlab, setUsernameGitlab] = useState('')
   const [role, setRole] = useState('DEVELOPER')
+  const [isActive, setIsActive] = useState(true)
   const [selectedTeams, setSelectedTeams] = useState<string[]>([])
   const [teams, setTeams] = useState<Team[]>([])
   const [loading, setLoading] = useState(false)
@@ -29,11 +30,12 @@ export default function MemberForm({ memberId }: MemberFormProps) {
       fetch(`/api/members/${memberId}`)
         .then((r) => r.json())
         .then((data) => {
-          const m = data as { name: string; usernameGithub: string | null; usernameGitlab: string | null; role: string; teams: { id: string }[] }
+          const m = data as { name: string; usernameGithub: string | null; usernameGitlab: string | null; role: string; isActive: boolean; teams: { id: string }[] }
           setName(m.name)
           setUsernameGithub(m.usernameGithub ?? '')
           setUsernameGitlab(m.usernameGitlab ?? '')
           setRole(m.role)
+          setIsActive(m.isActive)
           setSelectedTeams(m.teams.map((t) => t.id))
         })
     }
@@ -50,6 +52,7 @@ export default function MemberForm({ memberId }: MemberFormProps) {
       usernameGithub: usernameGithub.trim() || undefined,
       usernameGitlab: usernameGitlab.trim() || undefined,
       role,
+      ...(memberId ? { isActive } : {}),
     }
 
     const url = memberId ? `/api/members/${memberId}` : '/api/members'
@@ -171,6 +174,32 @@ export default function MemberForm({ memberId }: MemberFormProps) {
             <option value="UNASSIGNED">Unassigned</option>
           </select>
         </div>
+
+        {memberId && (
+          <div className="mb-4">
+            <label className="mb-1.5 block text-sm font-medium text-dark dark:text-white">
+              Status
+            </label>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setIsActive(!isActive)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                  isActive ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    isActive ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+              <span className={`text-sm ${isActive ? 'text-green-600 dark:text-green-400' : 'text-body dark:text-dark-6'}`}>
+                {isActive ? 'Active' : 'Inactive'}
+              </span>
+            </div>
+          </div>
+        )}
 
         {teams.length > 0 && (
           <div className="mb-6">

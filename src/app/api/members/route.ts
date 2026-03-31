@@ -13,11 +13,13 @@ export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl
   const roleFilter = searchParams.get('role')
   const teamId = searchParams.get('teamId')
+  const activeParam = searchParams.get('active')
 
   const members = await prisma.teamMember.findMany({
     where: {
       ...(roleFilter ? { role: roleFilter.toUpperCase() as 'MANAGER' | 'DEVELOPER' | 'UNASSIGNED' } : {}),
       ...(teamId ? { teams: { some: { teamId } } } : {}),
+      ...(activeParam !== null ? { isActive: activeParam === 'true' } : {}),
     },
     include: {
       teams: { include: { team: { select: { id: true, name: true } } } },
@@ -33,6 +35,7 @@ export async function GET(req: NextRequest) {
       usernameGitlab: m.usernameGitlab,
       role: m.role,
       avatarUrl: m.avatarUrl,
+      isActive: m.isActive,
       lastLoginAt: m.lastLoginAt,
       teams: m.teams.map((t) => t.team),
     }))
