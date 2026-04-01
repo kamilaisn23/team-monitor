@@ -16,10 +16,11 @@ export async function PATCH(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (!session.user.isSuperadmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const body = await req.json() as { lowMax?: unknown; mediumMax?: unknown }
+  const body = await req.json() as { lowMax?: unknown; mediumMax?: unknown; staleDays?: unknown }
 
   const lowMax = Number(body.lowMax)
   const mediumMax = Number(body.mediumMax)
+  const staleDays = Number(body.staleDays)
 
   if (!Number.isInteger(lowMax) || lowMax < 1) {
     return NextResponse.json({ error: 'lowMax must be a positive integer' }, { status: 400 })
@@ -30,7 +31,10 @@ export async function PATCH(req: NextRequest) {
   if (lowMax >= mediumMax) {
     return NextResponse.json({ error: 'lowMax must be less than mediumMax' }, { status: 400 })
   }
+  if (!Number.isInteger(staleDays) || staleDays < 1) {
+    return NextResponse.json({ error: 'staleDays must be a positive integer' }, { status: 400 })
+  }
 
-  await setWorkloadThresholds({ lowMax, mediumMax })
-  return NextResponse.json({ lowMax, mediumMax })
+  await setWorkloadThresholds({ lowMax, mediumMax, staleDays })
+  return NextResponse.json({ lowMax, mediumMax, staleDays })
 }

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import dayjs from 'dayjs'
+import { getWorkloadThresholds } from '@/lib/settings'
+import { wibMonthRange, wibCurrentMonth, wibDaysAgo } from '@/lib/wib'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -16,18 +17,20 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!member) return NextResponse.json({ error: 'Member not found' }, { status: 404 })
 
   const { searchParams } = req.nextUrl
-  const month = searchParams.get('month') || dayjs().format('YYYY-MM')
+  const month = searchParams.get('month') || wibCurrentMonth()
   const platform = searchParams.get('platform') || 'all'
 
-  const start = dayjs(month + '-01').startOf('month').toDate()
-  const end = dayjs(month + '-01').endOf('month').toDate()
+  const { start, end } = wibMonthRange(month)
 
   // Platform filter for repositories
   const platformFilter = platform !== 'all'
     ? { repository: { platform: platform.toUpperCase() as 'GITHUB' | 'GITLAB', ignored: false } }
     : { repository: { ignored: false } }
 
-  const [currentLoad, issuesCreated, issuesAssigned, issuesResolved] = await Promise.all([
+  const thresholds = await getWorkloadThresholds()
+  const staleDate = wibDaysAgo(thresholds.staleDays)
+
+  const [currentLoad, issuesCreated, issuesAssigned, issuesResolved, staleIssues] = await Promise.all([
     // Current load: open issues assigned
     prisma.issueAssignee.count({
       where: {
@@ -57,7 +60,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         issue: { state: 'CLOSED', closedAt: { gte: start, lte: end }, ...platformFilter },
       },
     }),
+    // Stale: open issues older than staleDays
+    prisma.issueAssignee.count({
+      where: {
+        teamMemberId: id,
+        issue: { state: 'OPEN', createdAt: { lt: staleDate }, ...platformFilter },
+      },
+    }),
   ])
 
-  return NextResponse.json({ memberId: id, month, platform, currentLoad, issuesCreated, issuesAssigned, issuesResolved })
+  return NextResponse.json({ memberId: id, month, platform, currentLoad, issuesCreated, issuesAssigned, issuesResolved, staleIssues, staleDays: thresholds.staleDays })
 }

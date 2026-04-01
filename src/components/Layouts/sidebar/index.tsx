@@ -294,9 +294,8 @@ export function Sidebar() {
                         ))}
                     </div>
 
-                    {/* Sync button for superadmin */}
-                    {isSuperadmin && (
-                        <div className="border-t border-gray-200 pt-4 pr-4 dark:border-gray-800">
+                    {/* Sync button for all roles */}
+                    <div className="border-t border-gray-200 pt-4 pr-4 dark:border-gray-800">
                             <button
                                 onClick={triggerSync}
                                 disabled={syncing}
@@ -323,7 +322,6 @@ export function Sidebar() {
                                 </span>
                             </button>
                         </div>
-                    )}
 
                 </div>
             </aside>

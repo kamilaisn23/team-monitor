@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import dayjs from "dayjs";
+import { formatWib } from "@/lib/wib";
 import Pagination from "@/components/ui/pagination";
 
 const PAGE_SIZE = 10;
@@ -205,9 +205,7 @@ export default function AdminMembersClient() {
                                     </td>
                                     <td className="px-4 py-3 text-sm text-body dark:text-dark-6">
                                         {member.lastLoginAt
-                                            ? dayjs(member.lastLoginAt).format(
-                                                  "MMM D, YYYY",
-                                              )
+                                            ? formatWib(member.lastLoginAt, "MMM D, YYYY")
                                             : "Never"}
                                     </td>
                                     <td className="px-4 py-3">

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import dayjs from 'dayjs'
+import { wibMonthRange } from '@/lib/wib'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -19,8 +19,7 @@ export async function GET(req: NextRequest) {
   const nameFilter = searchParams.get('name')
   const platform = searchParams.get('platform') || 'all'
 
-  const start = dayjs(month + '-01').startOf('month').toDate()
-  const end = dayjs(month + '-01').endOf('month').toDate()
+  const { start, end } = wibMonthRange(month)
 
   const repoFilter = {
     ignored: false,

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import dayjs from "dayjs";
+import { wibCurrentMonth } from "@/lib/wib";
 import Pagination from "@/components/ui/pagination";
 
 interface ReportRow {
@@ -20,7 +20,7 @@ const PAGE_SIZE = 10;
 export default function ReportsClient() {
     const [data, setData] = useState<ReportRow[]>([]);
     const [loading, setLoading] = useState(true);
-    const [month, setMonth] = useState(dayjs().format("YYYY-MM"));
+    const [month, setMonth] = useState(wibCurrentMonth);
     const [nameFilter, setNameFilter] = useState("");
     const [repoFilter, setRepoFilter] = useState("");
     const [platformFilter, setPlatformFilter] = useState("all");

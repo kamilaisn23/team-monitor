@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import dayjs from 'dayjs'
+import { getWorkloadThresholds } from '@/lib/settings'
+import { wibMonthRange, wibDaysAgo, nowWib } from '@/lib/wib'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -29,12 +30,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   const dateFilter = month
-    ? {
-        createdAt: {
-          gte: dayjs(month + '-01').startOf('month').toDate(),
-          lte: dayjs(month + '-01').endOf('month').toDate(),
-        },
-      }
+    ? { createdAt: (() => { const { start, end } = wibMonthRange(month); return { gte: start, lte: end } })() }
     : {}
 
   const stateFilter = state !== 'all' ? { state: state.toUpperCase() as 'OPEN' | 'CLOSED' } : {}
@@ -70,7 +66,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     ...stateFilter,
   }
 
-  const [total, issues] = await Promise.all([
+  const [total, issues, thresholds] = await Promise.all([
     prisma.issue.count({ where }),
     prisma.issue.findMany({
       where,
@@ -82,21 +78,30 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       skip: (page - 1) * limit,
       take: limit,
     }),
+    getWorkloadThresholds(),
   ])
 
+  const staleDate = wibDaysAgo(thresholds.staleDays)
+
   return NextResponse.json({
-    data: issues.map((issue) => ({
-      id: issue.id,
-      title: issue.title,
-      url: issue.url,
-      state: issue.state,
-      platform: issue.repository.platform,
-      repository: { id: issue.repository.id, name: issue.repository.name },
-      createdAt: issue.createdAt,
-      closedAt: issue.closedAt,
-      isCreator: createdIssueIds.has(issue.id),
-      isAssignee: assignedIssueIds.has(issue.id),
-    })),
+    data: issues.map((issue) => {
+      const daysOpen = issue.state === 'OPEN' ? nowWib().diff(issue.createdAt, 'day') : null
+      const isStale = issue.state === 'OPEN' && issue.createdAt < staleDate
+      return {
+        id: issue.id,
+        title: issue.title,
+        url: issue.url,
+        state: issue.state,
+        platform: issue.repository.platform,
+        repository: { id: issue.repository.id, name: issue.repository.name },
+        createdAt: issue.createdAt,
+        closedAt: issue.closedAt,
+        isCreator: createdIssueIds.has(issue.id),
+        isAssignee: assignedIssueIds.has(issue.id),
+        daysOpen,
+        isStale,
+      }
+    }),
     total,
     page,
     limit,

@@ -15,6 +15,7 @@ const PREVIEW_COUNTS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20]
 export default function SettingsClient() {
   const [lowMax, setLowMax] = useState(3)
   const [mediumMax, setMediumMax] = useState(7)
+  const [staleDays, setStaleDays] = useState(30)
   const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -27,6 +28,7 @@ export default function SettingsClient() {
         const d = data as WorkloadThresholds
         setLowMax(d.lowMax)
         setMediumMax(d.mediumMax)
+        setStaleDays(d.staleDays)
         setLoading(false)
       })
   }, [])
@@ -35,6 +37,7 @@ export default function SettingsClient() {
     if (!Number.isInteger(lowMax) || lowMax < 1) return 'Low max must be a positive integer.'
     if (!Number.isInteger(mediumMax) || mediumMax < 1) return 'Medium max must be a positive integer.'
     if (lowMax >= mediumMax) return 'Low max must be less than Medium max.'
+    if (!Number.isInteger(staleDays) || staleDays < 1) return 'Stale days must be a positive integer.'
     return ''
   }
 
@@ -46,7 +49,7 @@ export default function SettingsClient() {
     const res = await fetch('/api/settings', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lowMax, mediumMax }),
+      body: JSON.stringify({ lowMax, mediumMax, staleDays }),
     })
     setSaving(false)
     if (!res.ok) {
@@ -58,7 +61,7 @@ export default function SettingsClient() {
     setTimeout(() => setSaved(false), 3000)
   }
 
-  const preview: WorkloadThresholds = { lowMax, mediumMax }
+  const preview: WorkloadThresholds = { lowMax, mediumMax, staleDays }
   const validationError = validate()
 
   if (loading) {
@@ -70,6 +73,28 @@ export default function SettingsClient() {
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-dark dark:text-white">Settings</h2>
         <p className="text-sm text-body dark:text-dark-6">Configure system-wide thresholds and behaviour</p>
+      </div>
+
+      {/* Stale issue card */}
+      <div className="mb-6 rounded-xl border border-stroke bg-white dark:border-stroke-dark dark:bg-gray-dark">
+        <div className="border-b border-stroke px-6 py-4 dark:border-stroke-dark">
+          <h3 className="font-semibold text-dark dark:text-white">Stale Issue Threshold</h3>
+          <p className="mt-0.5 text-sm text-body dark:text-dark-6">
+            Open issues older than this many days are flagged as stale on member profiles.
+          </p>
+        </div>
+        <div className="px-6 py-5">
+          <div className="flex items-center gap-3">
+            <input
+              type="number"
+              min={1}
+              value={staleDays}
+              onChange={(e) => { setSaved(false); setStaleDays(parseInt(e.target.value, 10) || 0) }}
+              className="w-24 rounded-lg border border-stroke bg-white px-3 py-2 text-sm text-dark dark:border-stroke-dark dark:bg-gray-dark dark:text-white"
+            />
+            <span className="text-sm text-body dark:text-dark-6">days without resolution → flagged stale</span>
+          </div>
+        </div>
       </div>
 
       {/* Workload thresholds card */}

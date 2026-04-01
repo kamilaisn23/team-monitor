@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import dayjs from 'dayjs'
+import { wibCurrentMonth, formatWib } from '@/lib/wib'
+import ActivityChart from './ActivityChart'
 
 interface Member {
   id: string
@@ -21,6 +22,8 @@ interface Stats {
   issuesCreated: number
   issuesAssigned: number
   issuesResolved: number
+  staleIssues: number
+  staleDays: number
 }
 
 interface Issue {
@@ -34,6 +37,14 @@ interface Issue {
   closedAt: string | null
   isCreator: boolean
   isAssignee: boolean
+  daysOpen: number | null
+  isStale: boolean
+}
+
+interface HeatmapRecord {
+  date: string
+  hour: number
+  count: number
 }
 
 export default function MemberProfileClient({ memberId }: { memberId: string }) {
@@ -41,12 +52,14 @@ export default function MemberProfileClient({ memberId }: { memberId: string }) 
   const [stats, setStats] = useState<Stats | null>(null)
   const [issues, setIssues] = useState<Issue[]>([])
   const [issueTotal, setIssueTotal] = useState(0)
+  const [heatmapRecords, setHeatmapRecords] = useState<HeatmapRecord[]>([])
+  const [heatmapDays, setHeatmapDays] = useState(90)
   const [platform, setPlatform] = useState('all')
   const [tab, setTab] = useState<'open' | 'resolved' | 'created'>('open')
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
 
-  const currentMonth = dayjs().format('YYYY-MM')
+  const currentMonth = wibCurrentMonth()
 
   useEffect(() => {
     fetch(`/api/members/${memberId}`)
@@ -60,6 +73,16 @@ export default function MemberProfileClient({ memberId }: { memberId: string }) 
       .then((r) => r.json())
       .then((data) => setStats(data as Stats))
   }, [memberId, platform, currentMonth])
+
+  useEffect(() => {
+    const params = new URLSearchParams({ platform, days: String(heatmapDays) })
+    fetch(`/api/members/${memberId}/timeline?${params.toString()}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const d = data as { records: HeatmapRecord[]; days: number }
+        setHeatmapRecords(d.records)
+      })
+  }, [memberId, platform, heatmapDays])
 
   useEffect(() => {
     setLoading(true)
@@ -78,6 +101,8 @@ export default function MemberProfileClient({ memberId }: { memberId: string }) 
   }, [memberId, platform, tab, page])
 
   if (!member) return <div className="p-8 text-center text-body">Loading...</div>
+
+  const hasTimeline = heatmapRecords.some((r) => r.count > 0)
 
   return (
     <div>
@@ -119,7 +144,7 @@ export default function MemberProfileClient({ memberId }: { memberId: string }) 
             )}
             {member.lastLoginAt && (
               <p className="mt-2 text-xs text-body dark:text-dark-6">
-                Last login: {dayjs(member.lastLoginAt).format('MMM D, YYYY')}
+                Last login: {formatWib(member.lastLoginAt, 'MMM D, YYYY')}
               </p>
             )}
           </div>
@@ -144,18 +169,72 @@ export default function MemberProfileClient({ memberId }: { memberId: string }) 
       </div>
 
       {/* Stats */}
-      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-5">
         {[
           { label: 'Open Issues', value: stats?.currentLoad ?? '—' },
           { label: 'Created This Month', value: stats?.issuesCreated ?? '—' },
           { label: 'Assigned This Month', value: stats?.issuesAssigned ?? '—' },
           { label: 'Resolved This Month', value: stats?.issuesResolved ?? '—' },
+          {
+            label: `Stale (${stats?.staleDays ?? '…'}d+)`,
+            value: stats?.staleIssues ?? '—',
+            highlight: stats !== null && stats.staleIssues > 0,
+          },
         ].map((stat) => (
-          <div key={stat.label} className="rounded-xl border border-stroke bg-white p-4 dark:border-stroke-dark dark:bg-gray-dark">
+          <div
+            key={stat.label}
+            className={`rounded-xl border p-4 ${
+              'highlight' in stat && stat.highlight
+                ? 'border-orange-300 bg-orange-50 dark:border-orange-700 dark:bg-orange-900/20'
+                : 'border-stroke bg-white dark:border-stroke-dark dark:bg-gray-dark'
+            }`}
+          >
             <p className="text-sm text-body dark:text-dark-6">{stat.label}</p>
-            <p className="text-2xl font-bold text-dark dark:text-white">{stat.value}</p>
+            <p className={`text-2xl font-bold ${'highlight' in stat && stat.highlight ? 'text-orange-600 dark:text-orange-400' : 'text-dark dark:text-white'}`}>
+              {stat.value}
+            </p>
           </div>
         ))}
+      </div>
+
+      {/* Activity Heatmap */}
+      <div className="mb-6 rounded-xl border border-stroke bg-white p-5 dark:border-stroke-dark dark:bg-gray-dark">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-dark dark:text-white">Resolution Activity</h3>
+            <p className="text-xs text-body dark:text-dark-6">Hour of day (WIB, UTC+7) × date — issues resolved</p>
+          </div>
+          <div className="flex gap-1">
+            {([30, 90, 180] as const).map((d) => (
+              <button
+                key={d}
+                onClick={() => setHeatmapDays(d)}
+                className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
+                  heatmapDays === d
+                    ? 'bg-primary text-white'
+                    : 'border border-stroke text-body hover:bg-gray-2 dark:border-stroke-dark dark:text-dark-6 dark:hover:bg-[#1a2535]'
+                }`}
+              >
+                {d}d
+              </button>
+            ))}
+          </div>
+        </div>
+        {hasTimeline ? (
+          <ActivityChart records={heatmapRecords} days={heatmapDays} />
+        ) : (
+          <div className="flex h-[240px] items-center justify-center text-sm text-body dark:text-dark-6">
+            No resolved issues in the last {heatmapDays} days.
+          </div>
+        )}
+        {/* Legend */}
+        <div className="mt-2 flex items-center justify-end gap-1.5 text-xs text-body dark:text-dark-6">
+          <span>Less</span>
+          {['#ebedf0', '#9be9a8', '#40c463', '#30a14e', '#216e39'].map((c) => (
+            <span key={c} className="inline-block h-3 w-3 rounded-sm" style={{ backgroundColor: c }} />
+          ))}
+          <span>More</span>
+        </div>
       </div>
 
       {/* Issue list */}
@@ -188,13 +267,18 @@ export default function MemberProfileClient({ memberId }: { memberId: string }) 
                   <a href={issue.url} target="_blank" rel="noopener noreferrer" className="font-medium text-dark hover:text-primary dark:text-white dark:hover:text-primary truncate block">
                     {issue.title}
                   </a>
-                  <div className="mt-1 flex items-center gap-2 text-xs text-body dark:text-dark-6">
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-body dark:text-dark-6">
                     <span>{issue.repository.name}</span>
                     <span className={`rounded-full px-1.5 py-0.5 font-medium ${
                       issue.platform === 'GITHUB' ? 'bg-gray-100 dark:bg-[#1a2535]' : 'bg-orange-50 dark:bg-orange-900/20'
                     }`}>{issue.platform}</span>
-                    <span>{dayjs(issue.createdAt).format('MMM D, YYYY')}</span>
-                    {issue.closedAt && <span>Closed: {dayjs(issue.closedAt).format('MMM D, YYYY')}</span>}
+                    <span>{formatWib(issue.createdAt, 'MMM D, YYYY')}</span>
+                    {issue.closedAt && <span>Closed: {formatWib(issue.closedAt, 'MMM D, YYYY')}</span>}
+                    {issue.isStale && (
+                      <span className="rounded-full bg-orange-100 px-1.5 py-0.5 font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
+                        Stale · {issue.daysOpen}d open
+                      </span>
+                    )}
                   </div>
                 </div>
                 <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${

@@ -10,19 +10,12 @@ interface Repo {
     url: string;
     ignored: boolean;
     discoveredAt: string;
-    teams: { id: string; name: string }[];
-}
-
-interface Team {
-    id: string;
-    name: string;
 }
 
 const PAGE_SIZE = 10;
 
 export default function AdminReposClient() {
     const [repos, setRepos] = useState<Repo[]>([]);
-    const [teams, setTeams] = useState<Team[]>([]);
     const [loading, setLoading] = useState(true);
     const [platformFilter, setPlatformFilter] = useState("");
     const [ignoredFilter, setIgnoredFilter] = useState("false");
@@ -47,12 +40,6 @@ export default function AdminReposClient() {
     }, [platformFilter, ignoredFilter]);
 
     useEffect(() => {
-        fetch("/api/teams")
-            .then((r) => r.json())
-            .then((t) => setTeams(t as Team[]));
-    }, []);
-
-    useEffect(() => {
         load();
     }, [load]);
 
@@ -67,15 +54,6 @@ export default function AdminReposClient() {
 
     const pagedRepos = repos.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-    const handleTeamTag = async (repoId: string, teamIds: string[]) => {
-        await fetch(`/api/repositories/${repoId}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ teamIds }),
-        });
-        load();
-    };
-
     return (
         <div>
             <div className="mb-6">
@@ -83,8 +61,8 @@ export default function AdminReposClient() {
                     Repositories
                 </h2>
                 <p className="text-sm text-body dark:text-dark-6">
-                    Auto-discovered repositories. Tag to teams or mark as
-                    ignored.
+                    Auto-discovered repositories. Mark as ignored to exclude
+                    from reports.
                 </p>
             </div>
 
@@ -123,7 +101,6 @@ export default function AdminReposClient() {
                                 {[
                                     "Platform",
                                     "Repository",
-                                    "Tagged Teams",
                                     "Ignored",
                                     "Actions",
                                 ].map((h) => (
@@ -164,29 +141,6 @@ export default function AdminReposClient() {
                                         </a>
                                     </td>
                                     <td className="px-4 py-3">
-                                        <select
-                                            multiple
-                                            value={repo.teams.map((t) => t.id)}
-                                            onChange={(e) => {
-                                                const selected = Array.from(
-                                                    e.target.selectedOptions,
-                                                ).map((o) => o.value);
-                                                handleTeamTag(
-                                                    repo.id,
-                                                    selected,
-                                                );
-                                            }}
-                                            className="rounded border border-stroke text-xs dark:border-stroke-dark dark:bg-gray-dark dark:text-white"
-                                            size={Math.min(teams.length, 3)}
-                                        >
-                                            {teams.map((t) => (
-                                                <option key={t.id} value={t.id}>
-                                                    {t.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </td>
-                                    <td className="px-4 py-3">
                                         <span
                                             className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                                                 repo.ignored
@@ -194,9 +148,7 @@ export default function AdminReposClient() {
                                                     : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
                                             }`}
                                         >
-                                            {repo.ignored
-                                                ? "Ignored"
-                                                : "Active"}
+                                            {repo.ignored ? "Ignored" : "Active"}
                                         </span>
                                     </td>
                                     <td className="px-4 py-3">
@@ -210,9 +162,7 @@ export default function AdminReposClient() {
                                                     : "text-red-600 hover:bg-red-50 dark:text-red-400"
                                             }`}
                                         >
-                                            {repo.ignored
-                                                ? "Unignore"
-                                                : "Ignore"}
+                                            {repo.ignored ? "Unignore" : "Ignore"}
                                         </button>
                                     </td>
                                 </tr>
