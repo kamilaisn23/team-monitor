@@ -20,6 +20,17 @@ export default function AdminReposClient() {
     const [platformFilter, setPlatformFilter] = useState("");
     const [ignoredFilter, setIgnoredFilter] = useState("false");
     const [page, setPage] = useState(1);
+    const [sortCol, setSortCol] = useState<"platform" | "name" | "ignored">("platform");
+    const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+    const handleSort = (col: typeof sortCol) => {
+        if (sortCol === col) {
+            setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+        } else {
+            setSortCol(col);
+            setSortDir("asc");
+        }
+    };
 
     const load = useCallback(() => {
         setLoading(true);
@@ -52,7 +63,17 @@ export default function AdminReposClient() {
         load();
     };
 
-    const pagedRepos = repos.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+    const sortedRepos = [...repos].sort((a, b) => {
+        const av = a[sortCol];
+        const bv = b[sortCol];
+        if (typeof av === "boolean" && typeof bv === "boolean") {
+            return sortDir === "asc" ? Number(av) - Number(bv) : Number(bv) - Number(av);
+        }
+        return sortDir === "asc"
+            ? String(av).localeCompare(String(bv))
+            : String(bv).localeCompare(String(av));
+    });
+    const pagedRepos = sortedRepos.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
     return (
         <div>
@@ -98,19 +119,31 @@ export default function AdminReposClient() {
                     <table className="w-full">
                         <thead>
                             <tr className="border-b border-stroke bg-gray-2 dark:border-stroke-dark dark:bg-[#1a2535]">
-                                {[
-                                    "Platform",
-                                    "Repository",
-                                    "Ignored",
-                                    "Actions",
-                                ].map((h) => (
-                                    <th
-                                        key={h}
-                                        className="px-4 py-3 text-left text-sm font-medium text-body dark:text-dark-6"
-                                    >
-                                        {h}
-                                    </th>
-                                ))}
+                                {(
+                                    [
+                                        { label: "Platform", col: "platform" },
+                                        { label: "Repository", col: "name" },
+                                        { label: "Ignored", col: "ignored" },
+                                        { label: "Actions", col: null },
+                                    ] as { label: string; col: typeof sortCol | null }[]
+                                ).map(({ label, col }) =>
+                                    col ? (
+                                        <th
+                                            key={label}
+                                            onClick={() => handleSort(col)}
+                                            className="cursor-pointer select-none px-4 py-3 text-left text-sm font-medium text-body hover:text-dark dark:text-dark-6 dark:hover:text-white"
+                                        >
+                                            {label} {sortCol === col ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                                        </th>
+                                    ) : (
+                                        <th
+                                            key={label}
+                                            className="px-4 py-3 text-left text-sm font-medium text-body dark:text-dark-6"
+                                        >
+                                            {label}
+                                        </th>
+                                    )
+                                )}
                             </tr>
                         </thead>
                         <tbody>

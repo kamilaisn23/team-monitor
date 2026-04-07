@@ -5,8 +5,5 @@ export default async function RootPage() {
   const session = await auth()
   if (!session) redirect('/login')
   if (session.user.role === 'UNASSIGNED') redirect('/pending')
-  if (session.user.role === 'DEVELOPER') {
-    redirect(session.user.id ? `/members/${session.user.id}` : '/pending')
-  }
   redirect('/dashboard')
 }

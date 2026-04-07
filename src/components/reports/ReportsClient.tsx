@@ -26,6 +26,17 @@ export default function ReportsClient() {
     const [platformFilter, setPlatformFilter] = useState("all");
     const [repos, setRepos] = useState<{ id: string; name: string }[]>([]);
     const [page, setPage] = useState(1);
+    const [sortCol, setSortCol] = useState<keyof ReportRow>("issuesResolved");
+    const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+    const handleSort = (col: keyof ReportRow) => {
+        if (sortCol === col) {
+            setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+        } else {
+            setSortCol(col);
+            setSortDir("desc");
+        }
+    };
 
     useEffect(() => {
         fetch("/api/repositories?ignored=false")
@@ -51,7 +62,17 @@ export default function ReportsClient() {
             });
     }, [month, nameFilter, repoFilter, platformFilter]);
 
-    const pagedData = data.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+    const sortedData = [...data].sort((a, b) => {
+        const av = a[sortCol];
+        const bv = b[sortCol];
+        if (typeof av === "number" && typeof bv === "number") {
+            return sortDir === "asc" ? av - bv : bv - av;
+        }
+        return sortDir === "asc"
+            ? String(av).localeCompare(String(bv))
+            : String(bv).localeCompare(String(av));
+    });
+    const pagedData = sortedData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
     const totals = data.reduce(
         (acc, row) => ({
@@ -140,19 +161,23 @@ export default function ReportsClient() {
                     <table className="w-full">
                         <thead>
                             <tr className="border-b border-stroke bg-gray-2 dark:border-stroke-dark dark:bg-[#1a2535]">
-                                {[
-                                    "Name",
-                                    "Role",
-                                    "Created",
-                                    "Assigned",
-                                    "Resolved",
-                                    "Still Open",
-                                ].map((h) => (
+                                {(
+                                    [
+                                        { label: "Name", col: "name" },
+                                        { label: "Role", col: "role" },
+                                        { label: "Created", col: "issuesCreated" },
+                                        { label: "Assigned", col: "issuesAssigned" },
+                                        { label: "Resolved", col: "issuesResolved" },
+                                        { label: "Still Open", col: "issuesStillOpen" },
+                                    ] as { label: string; col: keyof ReportRow }[]
+                                ).map(({ label, col }) => (
                                     <th
-                                        key={h}
-                                        className="px-4 py-3 text-left text-sm font-medium text-body dark:text-dark-6"
+                                        key={col}
+                                        onClick={() => handleSort(col)}
+                                        className="cursor-pointer select-none px-4 py-3 text-left text-sm font-medium text-body hover:text-dark dark:text-dark-6 dark:hover:text-white"
                                     >
-                                        {h}
+                                        {label}{" "}
+                                        {sortCol === col ? (sortDir === "asc" ? "↑" : "↓") : ""}
                                     </th>
                                 ))}
                             </tr>

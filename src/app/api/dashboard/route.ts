@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
     if (!session)
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const role = session.user.role;
-    if (!session.user.isSuperadmin && role !== "MANAGER") {
+    if (!session.user.isSuperadmin && role !== "MANAGER" && role !== "DEVELOPER") {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

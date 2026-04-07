@@ -20,7 +20,7 @@ export function Sidebar() {
 
     const role = session?.user?.role;
     const isSuperadmin = session?.user?.isSuperadmin;
-    const isDeveloper = role === "DEVELOPER" && !isSuperadmin;
+    const isDeveloper = false; // developers now have same nav access as managers
 
     // Filter nav data based on role
     const navData = isDeveloper

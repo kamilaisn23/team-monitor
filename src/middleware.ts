@@ -16,11 +16,6 @@ export default auth((req) => {
 
   // Authenticated on login page → redirect to dashboard
   if (pathname === '/login') {
-    const role = session.user.role
-    if (role === 'DEVELOPER') {
-      const id = session.user.id
-      return NextResponse.redirect(new URL(id ? `/members/${id}` : '/pending', req.url))
-    }
     return NextResponse.redirect(new URL('/dashboard', req.url))
   }
 
@@ -33,14 +28,10 @@ export default auth((req) => {
     return NextResponse.redirect(new URL('/pending', req.url))
   }
 
-  // Developer access restrictions
+  // Developer access restrictions (admin pages only)
   if (role === 'DEVELOPER' && !isSuperadmin) {
-    const ownId = session.user.id
-    if (pathname === '/dashboard' || pathname === '/reports') {
-      return NextResponse.redirect(new URL(ownId ? `/members/${ownId}` : '/pending', req.url))
-    }
     if (pathname.startsWith('/admin')) {
-      return NextResponse.redirect(new URL(ownId ? `/members/${ownId}` : '/pending', req.url))
+      return NextResponse.redirect(new URL('/dashboard', req.url))
     }
   }
 

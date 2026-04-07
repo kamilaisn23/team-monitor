@@ -28,6 +28,17 @@ export default function AdminMembersClient() {
     const [page, setPage] = useState(1);
     const [activeFilter, setActiveFilter] = useState<"all" | "active" | "inactive">("all");
     const [togglingId, setTogglingId] = useState<string | null>(null);
+    const [sortCol, setSortCol] = useState<"name" | "isActive" | "role" | "usernameGithub" | "usernameGitlab" | "lastLoginAt">("name");
+    const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+    const handleSort = (col: typeof sortCol) => {
+        if (sortCol === col) {
+            setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+        } else {
+            setSortCol(col);
+            setSortDir("asc");
+        }
+    };
 
     const load = useCallback(() => {
         setLoading(true);
@@ -65,11 +76,17 @@ export default function AdminMembersClient() {
         load();
     };
 
-    // Unassigned members shown first
     const sorted = [...members].sort((a, b) => {
-        if (a.role === "UNASSIGNED" && b.role !== "UNASSIGNED") return -1;
-        if (a.role !== "UNASSIGNED" && b.role === "UNASSIGNED") return 1;
-        return a.name.localeCompare(b.name);
+        const av = a[sortCol];
+        const bv = b[sortCol];
+        if (typeof av === "boolean" && typeof bv === "boolean") {
+            return sortDir === "asc" ? Number(av) - Number(bv) : Number(bv) - Number(av);
+        }
+        const aStr = av ?? "";
+        const bStr = bv ?? "";
+        return sortDir === "asc"
+            ? String(aStr).localeCompare(String(bStr))
+            : String(bStr).localeCompare(String(aStr));
     });
 
     const paginated = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -118,23 +135,35 @@ export default function AdminMembersClient() {
                     <table className="w-full">
                         <thead>
                             <tr className="border-b border-stroke bg-gray-2 dark:border-stroke-dark dark:bg-[#1a2535]">
-                                {[
-                                    "Member",
-                                    "Status",
-                                    "Role",
-                                    "GitHub",
-                                    "GitLab",
-                                    "Teams",
-                                    "Last Login",
-                                    "Actions",
-                                ].map((h) => (
-                                    <th
-                                        key={h}
-                                        className="px-4 py-3 text-left text-sm font-medium text-body dark:text-dark-6"
-                                    >
-                                        {h}
-                                    </th>
-                                ))}
+                                {(
+                                    [
+                                        { label: "Member", col: "name" },
+                                        { label: "Status", col: "isActive" },
+                                        { label: "Role", col: "role" },
+                                        { label: "GitHub", col: "usernameGithub" },
+                                        { label: "GitLab", col: "usernameGitlab" },
+                                        { label: "Teams", col: null },
+                                        { label: "Last Login", col: "lastLoginAt" },
+                                        { label: "Actions", col: null },
+                                    ] as { label: string; col: typeof sortCol | null }[]
+                                ).map(({ label, col }) =>
+                                    col ? (
+                                        <th
+                                            key={label}
+                                            onClick={() => handleSort(col)}
+                                            className="cursor-pointer select-none px-4 py-3 text-left text-sm font-medium text-body hover:text-dark dark:text-dark-6 dark:hover:text-white"
+                                        >
+                                            {label} {sortCol === col ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                                        </th>
+                                    ) : (
+                                        <th
+                                            key={label}
+                                            className="px-4 py-3 text-left text-sm font-medium text-body dark:text-dark-6"
+                                        >
+                                            {label}
+                                        </th>
+                                    )
+                                )}
                             </tr>
                         </thead>
                         <tbody>

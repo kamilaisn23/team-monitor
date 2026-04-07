@@ -35,6 +35,17 @@ export default function DashboardClient() {
     const [repos, setRepos] = useState<{ id: string; name: string }[]>([]);
     const [repoFilter, setRepoFilter] = useState("");
     const [page, setPage] = useState(1);
+    const [sortCol, setSortCol] = useState<"name" | "role" | "currentLoad" | "workloadLevel">("name");
+    const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+    const handleSort = (col: "name" | "role" | "currentLoad" | "workloadLevel") => {
+        if (sortCol === col) {
+            setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+        } else {
+            setSortCol(col);
+            setSortDir("asc");
+        }
+    };
 
     useEffect(() => {
         Promise.all([
@@ -64,7 +75,17 @@ export default function DashboardClient() {
 
     const totalOpen = members.reduce((s, m) => s + m.currentLoad, 0);
     const highCount = members.filter((m) => m.workloadLevel === "high").length;
-    const pagedMembers = members.slice(
+    const sortedMembers = [...members].sort((a, b) => {
+        const av = a[sortCol];
+        const bv = b[sortCol];
+        if (typeof av === "number" && typeof bv === "number") {
+            return sortDir === "asc" ? av - bv : bv - av;
+        }
+        return sortDir === "asc"
+            ? String(av).localeCompare(String(bv))
+            : String(bv).localeCompare(String(av));
+    });
+    const pagedMembers = sortedMembers.slice(
         (page - 1) * PAGE_SIZE,
         page * PAGE_SIZE,
     );
@@ -161,20 +182,32 @@ export default function DashboardClient() {
                     <table className="w-full">
                         <thead>
                             <tr className="border-b border-stroke bg-gray-2 dark:border-stroke-dark dark:bg-[#1a2535]">
-                                <th className="px-4 py-3 text-left text-sm font-medium text-body dark:text-dark-6">
-                                    Member
+                                <th
+                                    onClick={() => handleSort("name")}
+                                    className="cursor-pointer select-none px-4 py-3 text-left text-sm font-medium text-body hover:text-dark dark:text-dark-6 dark:hover:text-white"
+                                >
+                                    Member {sortCol === "name" ? (sortDir === "asc" ? "↑" : "↓") : ""}
                                 </th>
-                                <th className="px-4 py-3 text-left text-sm font-medium text-body dark:text-dark-6">
-                                    Role
+                                <th
+                                    onClick={() => handleSort("role")}
+                                    className="cursor-pointer select-none px-4 py-3 text-left text-sm font-medium text-body hover:text-dark dark:text-dark-6 dark:hover:text-white"
+                                >
+                                    Role {sortCol === "role" ? (sortDir === "asc" ? "↑" : "↓") : ""}
                                 </th>
                                 <th className="px-4 py-3 text-left text-sm font-medium text-body dark:text-dark-6">
                                     Teams
                                 </th>
-                                <th className="px-4 py-3 text-right text-sm font-medium text-body dark:text-dark-6">
-                                    Open Issues
+                                <th
+                                    onClick={() => handleSort("currentLoad")}
+                                    className="cursor-pointer select-none px-4 py-3 text-right text-sm font-medium text-body hover:text-dark dark:text-dark-6 dark:hover:text-white"
+                                >
+                                    Open Issues {sortCol === "currentLoad" ? (sortDir === "asc" ? "↑" : "↓") : ""}
                                 </th>
-                                <th className="px-4 py-3 text-left text-sm font-medium text-body dark:text-dark-6">
-                                    Workload
+                                <th
+                                    onClick={() => handleSort("workloadLevel")}
+                                    className="cursor-pointer select-none px-4 py-3 text-left text-sm font-medium text-body hover:text-dark dark:text-dark-6 dark:hover:text-white"
+                                >
+                                    Workload {sortCol === "workloadLevel" ? (sortDir === "asc" ? "↑" : "↓") : ""}
                                 </th>
                             </tr>
                         </thead>
