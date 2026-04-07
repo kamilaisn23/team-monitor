@@ -61,6 +61,23 @@ export const NAV_DATA: NavSection[] = [
 
 export const NAV_DATA_DEVELOPER: NavSection[] = [
     {
+        label: "MAIN MENU",
+        items: [
+            {
+                title: "Dashboard",
+                url: "/dashboard",
+                icon: Icons.HomeIcon,
+                items: [],
+            },
+            {
+                title: "Reports",
+                url: "/reports",
+                icon: Icons.Table,
+                items: [],
+            },
+        ],
+    },
+    {
         label: "MY ACTIVITY",
         items: [
             {

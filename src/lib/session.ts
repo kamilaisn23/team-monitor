@@ -24,7 +24,7 @@ export async function requireManager() {
 export async function requireManagerOrAbove() {
   const session = await getSession()
   const role = session.user.role as AppRole
-  const allowed = session.user.isSuperadmin || role === 'MANAGER'
+  const allowed = session.user.isSuperadmin || role === 'MANAGER' || role === 'DEVELOPER'
   if (!allowed) redirect('/dashboard')
   return session
 }
