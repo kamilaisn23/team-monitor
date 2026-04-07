@@ -18,9 +18,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { searchParams } = req.nextUrl
   const month = searchParams.get('month') || wibCurrentMonth()
+  const daysParam = searchParams.get('days')
   const platform = searchParams.get('platform') || 'all'
 
-  const { start, end } = wibMonthRange(month)
+  let start: Date, end: Date
+  if (daysParam) {
+    const days = parseInt(daysParam, 10)
+    start = wibDaysAgo(days)
+    end = new Date()
+  } else {
+    ;({ start, end } = wibMonthRange(month))
+  }
 
   // Platform filter for repositories
   const platformFilter = platform !== 'all'

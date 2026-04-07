@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { wibCurrentMonth, formatWib } from '@/lib/wib'
+import { formatWib } from '@/lib/wib'
 import ActivityChart from './ActivityChart'
 
 interface Member {
@@ -47,6 +47,9 @@ interface HeatmapRecord {
   count: number
 }
 
+type SortKey = 'title' | 'repository' | 'platform' | 'createdAt' | 'closedAt' | 'state'
+type SortDir = 'asc' | 'desc'
+
 export default function MemberProfileClient({ memberId }: { memberId: string }) {
   const [member, setMember] = useState<Member | null>(null)
   const [stats, setStats] = useState<Stats | null>(null)
@@ -58,8 +61,29 @@ export default function MemberProfileClient({ memberId }: { memberId: string }) 
   const [tab, setTab] = useState<'open' | 'resolved' | 'created'>('open')
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
+  const [sortKey, setSortKey] = useState<SortKey>('createdAt')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
 
-  const currentMonth = wibCurrentMonth()
+  function handleSort(key: SortKey) {
+    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    else { setSortKey(key); setSortDir('asc') }
+  }
+
+  const getIssueValue = (issue: Issue, key: SortKey): string => {
+    if (key === 'repository') return issue.repository.name
+    if (key === 'closedAt') return issue.closedAt ?? ''
+    if (key === 'title') return issue.title
+    if (key === 'platform') return issue.platform
+    if (key === 'createdAt') return issue.createdAt
+    if (key === 'state') return issue.state
+    return ''
+  }
+
+  const sortedIssues = [...issues].sort((a, b) => {
+    const av = getIssueValue(a, sortKey)
+    const bv = getIssueValue(b, sortKey)
+    return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
+  })
 
   useEffect(() => {
     fetch(`/api/members/${memberId}`)
@@ -68,11 +92,11 @@ export default function MemberProfileClient({ memberId }: { memberId: string }) 
   }, [memberId])
 
   useEffect(() => {
-    const params = new URLSearchParams({ month: currentMonth, platform })
+    const params = new URLSearchParams({ days: '30', platform })
     fetch(`/api/members/${memberId}/stats?${params.toString()}`)
       .then((r) => r.json())
       .then((data) => setStats(data as Stats))
-  }, [memberId, platform, currentMonth])
+  }, [memberId, platform])
 
   useEffect(() => {
     const params = new URLSearchParams({ platform, days: String(heatmapDays) })
@@ -172,9 +196,9 @@ export default function MemberProfileClient({ memberId }: { memberId: string }) 
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-5">
         {[
           { label: 'Open Issues', value: stats?.currentLoad ?? '—' },
-          { label: 'Created This Month', value: stats?.issuesCreated ?? '—' },
-          { label: 'Assigned This Month', value: stats?.issuesAssigned ?? '—' },
-          { label: 'Resolved This Month', value: stats?.issuesResolved ?? '—' },
+          { label: 'Created (Last 30d)', value: stats?.issuesCreated ?? '—' },
+          { label: 'Assigned (Last 30d)', value: stats?.issuesAssigned ?? '—' },
+          { label: 'Resolved (Last 30d)', value: stats?.issuesResolved ?? '—' },
           {
             label: `Stale (${stats?.staleDays ?? '…'}d+)`,
             value: stats?.staleIssues ?? '—',
@@ -260,34 +284,81 @@ export default function MemberProfileClient({ memberId }: { memberId: string }) 
         ) : issues.length === 0 ? (
           <div className="p-8 text-center text-body">No issues found.</div>
         ) : (
-          <div>
-            {issues.map((issue) => (
-              <div key={issue.id} className="flex items-start gap-3 border-b border-stroke p-4 last:border-0 dark:border-stroke-dark">
-                <div className="flex-1 min-w-0">
-                  <a href={issue.url} target="_blank" rel="noopener noreferrer" className="font-medium text-dark hover:text-primary dark:text-white dark:hover:text-primary truncate block">
-                    {issue.title}
-                  </a>
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-body dark:text-dark-6">
-                    <span>{issue.repository.name}</span>
-                    <span className={`rounded-full px-1.5 py-0.5 font-medium ${
-                      issue.platform === 'GITHUB' ? 'bg-gray-100 dark:bg-[#1a2535]' : 'bg-orange-50 dark:bg-orange-900/20'
-                    }`}>{issue.platform}</span>
-                    <span>{formatWib(issue.createdAt, 'MMM D, YYYY')}</span>
-                    {issue.closedAt && <span>Closed: {formatWib(issue.closedAt, 'MMM D, YYYY')}</span>}
-                    {issue.isStale && (
-                      <span className="rounded-full bg-orange-100 px-1.5 py-0.5 font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
-                        Stale · {issue.daysOpen}d open
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-stroke bg-gray-2 text-left dark:border-stroke-dark dark:bg-[#1a2535]">
+                  {([
+                    { key: 'title', label: 'Title' },
+                    { key: 'repository', label: 'Repo' },
+                    { key: 'platform', label: 'Platform' },
+                    { key: 'createdAt', label: 'Created' },
+                    { key: 'closedAt', label: 'Closed' },
+                    { key: 'state', label: 'Status' },
+                  ] as { key: SortKey; label: string }[]).map(({ key, label }) => (
+                    <th
+                      key={key}
+                      onClick={() => handleSort(key)}
+                      className="cursor-pointer select-none px-4 py-2.5 font-medium text-body hover:text-dark dark:text-dark-6 dark:hover:text-white"
+                    >
+                      {label}
+                      {sortKey === key && (
+                        <span className="ml-1">{sortDir === 'asc' ? '↑' : '↓'}</span>
+                      )}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sortedIssues.map((issue) => (
+                  <tr key={issue.id} className="border-b border-stroke last:border-0 hover:bg-gray-2/50 dark:border-stroke-dark dark:hover:bg-[#1a2535]/50">
+                    <td className="max-w-xs px-4 py-3">
+                      <a
+                        href={issue.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block truncate font-medium text-dark hover:text-primary dark:text-white dark:hover:text-primary"
+                        title={issue.title}
+                      >
+                        {issue.title}
+                      </a>
+                      {issue.isStale && (
+                        <span className="mt-0.5 inline-block rounded-full bg-orange-100 px-1.5 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
+                          Stale · {issue.daysOpen}d
+                        </span>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-body dark:text-dark-6">
+                      {issue.repository.name}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3">
+                      <span className={`rounded-full px-1.5 py-0.5 text-xs font-medium ${
+                        issue.platform === 'GITHUB'
+                          ? 'bg-gray-100 text-body dark:bg-[#1a2535] dark:text-dark-6'
+                          : 'bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300'
+                      }`}>
+                        {issue.platform}
                       </span>
-                    )}
-                  </div>
-                </div>
-                <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
-                  issue.state === 'OPEN' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-gray-100 text-gray-600 dark:bg-[#1a2535] dark:text-dark-6'
-                }`}>
-                  {issue.state}
-                </span>
-              </div>
-            ))}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-body dark:text-dark-6">
+                      {formatWib(issue.createdAt, 'MMM D, YYYY')}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-body dark:text-dark-6">
+                      {issue.closedAt ? formatWib(issue.closedAt, 'MMM D, YYYY') : '—'}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3">
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                        issue.state === 'OPEN'
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                          : 'bg-gray-100 text-gray-600 dark:bg-[#1a2535] dark:text-dark-6'
+                      }`}>
+                        {issue.state}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
             {issueTotal > 20 && (
               <div className="flex items-center justify-between p-4">
                 <span className="text-sm text-body dark:text-dark-6">{issueTotal} total</span>
