@@ -3,6 +3,13 @@ import GitHub from "next-auth/providers/github";
 import { prisma } from "@/lib/prisma";
 import type { AppRole } from "@/types";
 
+if (process.env.AUTH_SECRET === "generate-a-random-secret-here") {
+    throw new Error(
+        "AUTH_SECRET is still set to the placeholder value. " +
+        "Generate a real secret with: openssl rand -base64 32",
+    );
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
     trustHost: true,
     providers: [GitHub],

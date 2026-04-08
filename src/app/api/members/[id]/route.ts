@@ -66,6 +66,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     })
   } catch (e: unknown) {
     if (e instanceof Error && e.message.includes('Unique constraint')) {
+      if (e.message.includes('username_gitlab')) {
+        return NextResponse.json({ error: 'usernameGitlab already taken by another member' }, { status: 409 })
+      }
       return NextResponse.json({ error: 'usernameGithub already taken by another member' }, { status: 409 })
     }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

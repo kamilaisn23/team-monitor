@@ -35,7 +35,7 @@ model TeamMember {
   id             String    @id @default(cuid())
   name           String
   usernameGithub String?   @unique @map("username_github")
-  usernameGitlab String?   @map("username_gitlab")
+  usernameGitlab String?   @unique @map("username_gitlab")
   role           Role      @default(UNASSIGNED)
   githubOauthId  String?   @unique @map("github_oauth_id")
   avatarUrl      String?   @map("avatar_url")

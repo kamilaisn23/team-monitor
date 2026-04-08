@@ -69,6 +69,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(member, { status: 201 })
   } catch (e: unknown) {
     if (e instanceof Error && e.message.includes('Unique constraint')) {
+      if (e.message.includes('username_gitlab')) {
+        return NextResponse.json({ error: 'usernameGitlab already taken' }, { status: 409 })
+      }
       return NextResponse.json({ error: 'usernameGithub already taken' }, { status: 409 })
     }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

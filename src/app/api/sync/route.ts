@@ -13,6 +13,7 @@ function getSyncManager() {
         createSyncJob: () => string;
         getJob: (id: string) => SyncJob | undefined;
         isJobRunning: () => boolean;
+        getCooldownSecondsRemaining: () => number;
     };
 }
 
@@ -22,17 +23,27 @@ export async function POST() {
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
             status: 401,
         });
-    if (!session.user.isSuperadmin)
-        return new Response(JSON.stringify({ error: "Forbidden" }), {
-            status: 403,
-        });
 
-    const { createSyncJob, isJobRunning } = getSyncManager();
+    const { createSyncJob, isJobRunning, getCooldownSecondsRemaining } = getSyncManager();
 
     if (isJobRunning()) {
         return new Response(
             JSON.stringify({ error: "A sync is already in progress" }),
             { status: 409 },
+        );
+    }
+
+    const cooldownRemaining = getCooldownSecondsRemaining();
+    if (cooldownRemaining > 0) {
+        return new Response(
+            JSON.stringify({
+                error: "Sync cooldown active. Please wait before syncing again.",
+                retryAfter: cooldownRemaining,
+            }),
+            {
+                status: 429,
+                headers: { "Retry-After": String(cooldownRemaining) },
+            },
         );
     }
 
@@ -49,17 +60,22 @@ export async function GET(req: Request) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
             status: 401,
         });
-    if (!session.user.isSuperadmin)
-        return new Response(JSON.stringify({ error: "Forbidden" }), {
-            status: 403,
-        });
 
     const { searchParams } = new URL(req.url);
     const jobId = searchParams.get("jobId");
-    if (!jobId)
-        return new Response(JSON.stringify({ error: "Missing jobId" }), {
-            status: 400,
-        });
+    if (!jobId) {
+        const { isJobRunning, getCooldownSecondsRemaining } = getSyncManager();
+        return new Response(
+            JSON.stringify({
+                running: isJobRunning(),
+                cooldownSecondsRemaining: getCooldownSecondsRemaining(),
+            }),
+            {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+            },
+        );
+    }
 
     const { getJob } = getSyncManager();
     const job = getJob(jobId);

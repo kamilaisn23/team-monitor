@@ -17,6 +17,9 @@ const jobs = new Map<string, SyncJob>();
 
 const JOB_TTL_MS = 10 * 60 * 1000;
 
+const SYNC_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+let lastSyncCompletedAt: number | null = null;
+
 function cleanupJob(jobId: string) {
     setTimeout(() => jobs.delete(jobId), JOB_TTL_MS);
 }
@@ -70,6 +73,7 @@ export function createSyncJob(): string {
             if (event.type === "done") {
                 job.status = "done";
                 job.listeners = [];
+                lastSyncCompletedAt = Date.now();
                 cleanupJob(jobId);
             }
         },
@@ -106,4 +110,12 @@ export function isJobRunning(): boolean {
         if (job.status === "running") return true;
     }
     return false;
+}
+
+/** Returns seconds remaining in cooldown, or 0 if cooldown has passed. */
+export function getCooldownSecondsRemaining(): number {
+    if (lastSyncCompletedAt === null) return 0;
+    const elapsed = Date.now() - lastSyncCompletedAt;
+    const remaining = SYNC_COOLDOWN_MS - elapsed;
+    return remaining > 0 ? Math.ceil(remaining / 1000) : 0;
 }
