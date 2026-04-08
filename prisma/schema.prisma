@@ -124,6 +124,16 @@ model Issue {
   @@map("issues")
 }
 
+model SyncJob {
+  id         String    @id
+  status     String
+  startedAt  DateTime  @default(now()) @map("started_at")
+  finishedAt DateTime? @map("finished_at")
+  summary    Json?
+
+  @@map("sync_jobs")
+}
+
 model IssueAssignee {
   id               String  @id @default(cuid())
   issueId          String  @map("issue_id")

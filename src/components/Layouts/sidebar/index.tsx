@@ -12,7 +12,6 @@ import { ArrowLeftIcon, ChevronUp } from "./icons";
 import { MenuItem } from "./menu-item";
 import { useSidebarContext } from "./sidebar-context";
 
-
 export function Sidebar() {
     const pathname = usePathname();
     const { setIsOpen, isOpen, isMobile, toggleSidebar } = useSidebarContext();
@@ -72,40 +71,55 @@ export function Sidebar() {
 
     const [syncing, setSyncing] = useState(false);
     const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+    const [syncProgress, setSyncProgress] = useState<string | null>(null);
 
     const fetchLastSynced = () => {
         fetch("/api/sync/status")
             .then((r) => r.json())
-            .then((d: { lastSyncedAt: string | null }) => setLastSyncedAt(d.lastSyncedAt))
+            .then((d: { lastSyncedAt: string | null }) =>
+                setLastSyncedAt(d.lastSyncedAt),
+            )
             .catch(() => {});
     };
 
-    useEffect(() => { fetchLastSynced(); }, []);
+    useEffect(() => {
+        fetchLastSynced();
+    }, []);
 
     const triggerSync = () => {
         if (syncing) return;
         setSyncing(true);
+        setSyncProgress("Connecting...");
 
         fetch("/api/sync", { method: "POST" })
             .then(async (startRes) => {
                 if (!startRes.ok) {
                     setSyncing(false);
+                    setSyncProgress(null);
                     return;
                 }
                 const { jobId } = (await startRes.json()) as { jobId: string };
 
-                // Listen to SSE stream in the background just to know when sync finishes
+                // Stream SSE progress events and render them below the sync button
                 fetch(`/api/sync?jobId=${jobId}`)
                     .then((sseRes) => {
                         if (!sseRes.ok || !sseRes.body) {
                             setSyncing(false);
+                            setSyncProgress(null);
                             return;
                         }
                         const reader = sseRes.body.getReader();
                         const decoder = new TextDecoder();
                         let buffer = "";
-                        const read = ({ done, value }: ReadableStreamReadResult<Uint8Array>): Promise<void> => {
-                            if (done) { setSyncing(false); fetchLastSynced(); return Promise.resolve(); }
+                        const read = ({
+                            done,
+                            value,
+                        }: ReadableStreamReadResult<Uint8Array>): Promise<void> => {
+                            if (done) {
+                                setSyncing(false);
+                                fetchLastSynced();
+                                return Promise.resolve();
+                            }
                             buffer += decoder.decode(value, { stream: true });
                             const parts = buffer.split("\n\n");
                             buffer = parts.pop() ?? "";
@@ -113,21 +127,70 @@ export function Sidebar() {
                                 const line = part.replace(/^data: /, "").trim();
                                 if (!line) continue;
                                 try {
-                                    const event = JSON.parse(line) as { type: string };
-                                    if (event.type === "done" || event.type === "error") {
+                                    const event = JSON.parse(line) as {
+                                        type: string;
+                                    } & Record<string, unknown>;
+                                    if (event.type === "start") {
+                                        setSyncProgress(
+                                            `Starting sync for ${event.total as number} members...`,
+                                        );
+                                    } else if (event.type === "member_start") {
+                                        setSyncProgress(
+                                            `Syncing ${(event.index as number) + 1}/${event.total as number}: ${event.name as string}...`,
+                                        );
+                                    } else if (event.type === "resolving") {
+                                        setSyncProgress(
+                                            "Resolving usernames...",
+                                        );
+                                    } else if (event.type === "done") {
+                                        const totalIssues =
+                                            (event.githubIssues as number) +
+                                            (event.gitlabIssues as number);
+                                        setSyncProgress(
+                                            `✓ Done — ${event.processed as number} members, ${totalIssues} issues in ${event.durationSeconds as string}s`,
+                                        );
                                         setSyncing(false);
                                         fetchLastSynced();
+                                        setTimeout(
+                                            () => setSyncProgress(null),
+                                            10000,
+                                        );
+                                        return Promise.resolve();
+                                    } else if (event.type === "error") {
+                                        setSyncProgress(
+                                            `✗ Error: ${event.message as string}`,
+                                        );
+                                        setSyncing(false);
+                                        fetchLastSynced();
+                                        setTimeout(
+                                            () => setSyncProgress(null),
+                                            10000,
+                                        );
                                         return Promise.resolve();
                                     }
-                                } catch { /* ignore */ }
+                                } catch {
+                                    /* ignore */
+                                }
                             }
                             return reader.read().then(read);
                         };
-                        reader.read().then(read).catch(() => setSyncing(false));
+                        reader
+                            .read()
+                            .then(read)
+                            .catch(() => {
+                                setSyncing(false);
+                                setSyncProgress(null);
+                            });
                     })
-                    .catch(() => setSyncing(false));
+                    .catch(() => {
+                        setSyncing(false);
+                        setSyncProgress(null);
+                    });
             })
-            .catch(() => setSyncing(false));
+            .catch(() => {
+                setSyncing(false);
+                setSyncProgress(null);
+            });
     };
 
     return (
@@ -308,41 +371,47 @@ export function Sidebar() {
 
                     {/* Sync button for all roles */}
                     <div className="border-t border-gray-200 pt-4 pr-4 dark:border-gray-800">
-                            <button
-                                onClick={triggerSync}
-                                disabled={syncing}
-                                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-body hover:bg-gray-2 disabled:opacity-50 dark:text-dark-6 dark:hover:bg-[#1a2535]"
+                        <button
+                            onClick={triggerSync}
+                            disabled={syncing}
+                            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-body hover:bg-gray-2 disabled:opacity-50 dark:text-dark-6 dark:hover:bg-[#1a2535]"
+                        >
+                            <svg
+                                className={cn(
+                                    "size-4 shrink-0",
+                                    syncing && "animate-spin",
+                                )}
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
                             >
-                                <svg
-                                    className={cn(
-                                        "size-4 shrink-0",
-                                        syncing && "animate-spin",
-                                    )}
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                >
-                                    <path
-                                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                    />
-                                </svg>
-                                <span>
-                                    {syncing ? "Syncing..." : "Trigger Sync"}
-                                </span>
-                            </button>
-                            <p className="mt-1 px-3 text-xs text-dark-4 dark:text-dark-6">
-                                {lastSyncedAt
-                                    ? `Last synced: ${timeAgo(lastSyncedAt)}`
-                                    : "Never synced"}
+                                <path
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                />
+                            </svg>
+                            <span>
+                                {syncing ? "Syncing..." : "Trigger Sync"}
+                            </span>
+                        </button>
+                        <p className="mt-1 px-3 text-xs text-dark-4 dark:text-dark-6">
+                            {lastSyncedAt
+                                ? `Last synced: ${timeAgo(lastSyncedAt)}`
+                                : "Never synced"}
+                        </p>
+                        {syncProgress && (
+                            <p
+                                className="mt-1 px-3 text-xs text-primary dark:text-primary truncate"
+                                title={syncProgress}
+                            >
+                                {syncProgress}
                             </p>
-                        </div>
-
+                        )}
+                    </div>
                 </div>
             </aside>
-
         </>
     );
 }

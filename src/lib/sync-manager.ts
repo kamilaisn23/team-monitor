@@ -1,4 +1,5 @@
 import { Worker } from "worker_threads";
+import { PrismaClient } from "@prisma/client";
 import type { SyncProgressEvent } from "@/lib/sync";
 
 export type JobStatus = "running" | "done" | "error";
@@ -12,6 +13,8 @@ export interface SyncJob {
     >;
 }
 
+const prisma = new PrismaClient();
+
 // Module-level store — survives across requests in the same Node.js process
 const jobs = new Map<string, SyncJob>();
 
@@ -20,19 +23,35 @@ const JOB_TTL_MS = 10 * 60 * 1000;
 const SYNC_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
 let lastSyncCompletedAt: number | null = null;
 
+// On module load: mark any stale running DB jobs as error.
+// They were orphaned by a previous container restart — the worker threads are dead.
+(async () => {
+    try {
+        const updated = await prisma.syncJob.updateMany({
+            where: { status: "running" },
+            data: { status: "error", finishedAt: new Date() },
+        });
+        if (updated.count > 0) {
+            console.log(
+                `[sync-manager] Marked ${updated.count} stale running job(s) as error on startup`,
+            );
+        }
+    } catch (e) {
+        console.error("[sync-manager] Failed to clean stale sync jobs:", e);
+    }
+})();
+
 function cleanupJob(jobId: string) {
     setTimeout(() => jobs.delete(jobId), JOB_TTL_MS);
 }
 
 // Worker path is supplied via SYNC_WORKER_PATH env var (set in Dockerfile).
-// Using an env var avoids static path expressions like process.cwd() or __dirname
-// which cause Turbopack's NFT to trace the entire scripts/ directory at build time.
 function resolveWorkerPath(): string {
     const envPath = process.env.SYNC_WORKER_PATH;
     if (envPath) return envPath;
     throw new Error(
         "SYNC_WORKER_PATH environment variable is not set. " +
-        "Set it to the absolute path of the compiled scripts/sync-worker.js file.",
+            "Set it to the absolute path of the compiled scripts/sync-worker.js file.",
     );
 }
 
@@ -48,13 +67,20 @@ export function createSyncJob(): string {
 
     jobs.set(jobId, job);
 
+    // Persist to DB — fire and forget, don't block job creation
+    prisma.syncJob
+        .create({ data: { id: jobId, status: "running" } })
+        .catch((e: unknown) =>
+            console.error(
+                "[sync-manager] Failed to persist sync job to DB:",
+                e,
+            ),
+        );
+
     const workerPath = resolveWorkerPath();
 
     const worker = new Worker(workerPath, {
-        // Pass DATABASE_URL and other critical env vars into the worker
-        env: {
-            ...process.env,
-        },
+        env: { ...process.env },
     });
 
     const broadcast = (
@@ -74,6 +100,21 @@ export function createSyncJob(): string {
                 job.status = "done";
                 job.listeners = [];
                 lastSyncCompletedAt = Date.now();
+                prisma.syncJob
+                    .update({
+                        where: { id: jobId },
+                        data: {
+                            status: "done",
+                            finishedAt: new Date(),
+                            summary: event as object,
+                        },
+                    })
+                    .catch((e: unknown) =>
+                        console.error(
+                            "[sync-manager] Failed to update sync job in DB:",
+                            e,
+                        ),
+                    );
                 cleanupJob(jobId);
             }
         },
@@ -83,6 +124,17 @@ export function createSyncJob(): string {
         broadcast({ type: "error", message: err.message });
         job.status = "error";
         job.listeners = [];
+        prisma.syncJob
+            .update({
+                where: { id: jobId },
+                data: { status: "error", finishedAt: new Date() },
+            })
+            .catch((e: unknown) =>
+                console.error(
+                    "[sync-manager] Failed to update sync job in DB:",
+                    e,
+                ),
+            );
         cleanupJob(jobId);
     });
 
@@ -94,6 +146,17 @@ export function createSyncJob(): string {
             });
             job.status = "error";
             job.listeners = [];
+            prisma.syncJob
+                .update({
+                    where: { id: jobId },
+                    data: { status: "error", finishedAt: new Date() },
+                })
+                .catch((e: unknown) =>
+                    console.error(
+                        "[sync-manager] Failed to update sync job in DB:",
+                        e,
+                    ),
+                );
             cleanupJob(jobId);
         }
     });
@@ -102,10 +165,15 @@ export function createSyncJob(): string {
 }
 
 export function getJob(jobId: string): SyncJob | undefined {
-    return jobs.get(jobId);
+    // Return from in-memory map first (covers active and recently finished jobs)
+    const inMemory = jobs.get(jobId);
+    if (inMemory) return inMemory;
+    return undefined;
 }
 
 export function isJobRunning(): boolean {
+    // Check in-memory map — this is always accurate for the current process lifetime.
+    // Stale DB records from previous restarts are cleaned up on module load above.
     for (const job of jobs.values()) {
         if (job.status === "running") return true;
     }
