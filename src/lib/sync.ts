@@ -4,6 +4,7 @@ import {
     fetchGitlabIssues,
     getProjectUrl,
     parseRepoFromGitLabIssue,
+    prewarmProjectUrlCache,
 } from "@/lib/gitlab";
 
 const repoCache = new Map<string, { id: string }>()
@@ -12,12 +13,13 @@ async function upsertRepository(
     platform: "GITHUB" | "GITLAB",
     name: string,
     url: string,
+    platformId?: string,
 ) {
     if (repoCache.has(url)) return repoCache.get(url)!
     const repo = await prisma.repository.upsert({
         where: { url },
         update: {},
-        create: { platform, name, url, ignored: false },
+        create: { platform, name, url, ignored: false, ...(platformId ? { platformId } : {}) },
     });
     repoCache.set(url, repo)
     return repo
@@ -130,6 +132,18 @@ export async function runSync(onProgress?: (event: SyncProgressEvent) => void) {
     repoCache.clear();
     console.log(`[sync] Starting sync at ${new Date().toISOString()}`);
 
+    // Pre-warm GitLab project URL cache from stored repository records
+    const gitlabRepos = await prisma.repository.findMany({
+        where: { platform: "GITLAB", platformId: { not: null } },
+        select: { platformId: true, url: true },
+    });
+    prewarmProjectUrlCache(
+        gitlabRepos.filter((r) => r.platformId !== null) as {
+            platformId: string;
+            url: string;
+        }[],
+    );
+
     const members = await prisma.teamMember.findMany({
         where: {
             OR: [
@@ -146,8 +160,11 @@ export async function runSync(onProgress?: (event: SyncProgressEvent) => void) {
 
     onProgress?.({ type: "start", total: members.length });
 
-    for (const member of members) {
-        const index = processed;
+    const CONCURRENCY = 5;
+    let nextIndex = 0;
+
+    async function processMember(member: (typeof members)[number]) {
+        const index = nextIndex++;
         onProgress?.({
             type: "member_start",
             name: member.name,
@@ -228,6 +245,7 @@ export async function runSync(onProgress?: (event: SyncProgressEvent) => void) {
                         "GITLAB",
                         repoName,
                         repoUrl,
+                        String(glIssue.project_id),
                     );
                     const platformId = String(glIssue.iid);
 
@@ -303,6 +321,14 @@ export async function runSync(onProgress?: (event: SyncProgressEvent) => void) {
             processed++;
         }
     }
+
+    const queue = [...members];
+    const workers = Array.from({ length: CONCURRENCY }, async () => {
+        while (queue.length > 0) {
+            await processMember(queue.shift()!);
+        }
+    });
+    await Promise.all(workers);
 
     // Resolve username mappings
     onProgress?.({ type: "resolving" });

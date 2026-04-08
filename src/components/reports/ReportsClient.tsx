@@ -19,6 +19,8 @@ const PAGE_SIZE = 10;
 
 export default function ReportsClient() {
     const [data, setData] = useState<ReportRow[]>([]);
+    const [total, setTotal] = useState(0);
+    const [totals, setTotals] = useState({ issuesCreated: 0, issuesAssigned: 0, issuesResolved: 0, issuesStillOpen: 0 });
     const [loading, setLoading] = useState(true);
     const [month, setMonth] = useState(wibCurrentMonth);
     const [nameFilter, setNameFilter] = useState("");
@@ -54,13 +56,17 @@ export default function ReportsClient() {
         if (nameFilter) params.set("name", nameFilter);
         if (repoFilter) params.set("repositoryId", repoFilter);
         if (platformFilter !== "all") params.set("platform", platformFilter);
+        params.set("page", String(page));
+        params.set("limit", String(PAGE_SIZE));
         fetch(`/api/reports/monthly?${params.toString()}`)
             .then((r) => r.json())
-            .then((d) => {
-                setData((d as { data: ReportRow[] }).data);
+            .then((d: { data: ReportRow[]; total: number; totals: typeof totals }) => {
+                setData(d.data);
+                setTotal(d.total);
+                setTotals(d.totals);
                 setLoading(false);
             });
-    }, [month, nameFilter, repoFilter, platformFilter]);
+    }, [month, nameFilter, repoFilter, platformFilter, page]);
 
     const sortedData = [...data].sort((a, b) => {
         const av = a[sortCol];
@@ -72,22 +78,6 @@ export default function ReportsClient() {
             ? String(av).localeCompare(String(bv))
             : String(bv).localeCompare(String(av));
     });
-    const pagedData = sortedData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-    const totals = data.reduce(
-        (acc, row) => ({
-            issuesCreated: acc.issuesCreated + row.issuesCreated,
-            issuesAssigned: acc.issuesAssigned + row.issuesAssigned,
-            issuesResolved: acc.issuesResolved + row.issuesResolved,
-            issuesStillOpen: acc.issuesStillOpen + row.issuesStillOpen,
-        }),
-        {
-            issuesCreated: 0,
-            issuesAssigned: 0,
-            issuesResolved: 0,
-            issuesStillOpen: 0,
-        },
-    );
 
     const handleExport = () => {
         const params = new URLSearchParams({ month });
@@ -183,7 +173,7 @@ export default function ReportsClient() {
                             </tr>
                         </thead>
                         <tbody>
-                            {pagedData.map((row) => (
+                            {sortedData.map((row) => (
                                 <tr
                                     key={row.memberId}
                                     className="border-b border-stroke hover:bg-gray-2/50 dark:border-stroke-dark dark:hover:bg-[#1a2535]/50"
@@ -213,7 +203,7 @@ export default function ReportsClient() {
                                     </td>
                                 </tr>
                             ))}
-                            {data.length > 0 && (
+                            {total > 0 && (
                                 <tr className="border-t-2 border-stroke bg-gray-2/50 font-semibold dark:border-stroke-dark dark:bg-[#1a2535]">
                                     <td
                                         className="px-4 py-3 text-sm text-dark dark:text-white"
@@ -238,11 +228,11 @@ export default function ReportsClient() {
                         </tbody>
                     </table>
                 )}
-                {!loading && data.length > PAGE_SIZE && (
+                {!loading && total > PAGE_SIZE && (
                     <div className="border-t border-stroke dark:border-stroke-dark">
                         <Pagination
                             page={page}
-                            totalItems={data.length}
+                            totalItems={total}
                             pageSize={PAGE_SIZE}
                             onPageChange={setPage}
                         />

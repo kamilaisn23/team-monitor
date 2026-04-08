@@ -27,6 +27,7 @@ const PAGE_SIZE = 10;
 
 export default function DashboardClient() {
     const [members, setMembers] = useState<DashboardMember[]>([]);
+    const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
     const [teamFilter, setTeamFilter] = useState("");
     const [platformFilter, setPlatformFilter] = useState("all");
@@ -58,20 +59,26 @@ export default function DashboardClient() {
     }, []);
 
     useEffect(() => {
+        setPage(1);
+    }, [teamFilter, repoFilter, platformFilter, activeFilter]);
+
+    useEffect(() => {
         setLoading(true);
         const params = new URLSearchParams();
         if (teamFilter) params.set("teamId", teamFilter);
         if (repoFilter) params.set("repositoryId", repoFilter);
         if (platformFilter !== "all") params.set("platform", platformFilter);
         if (activeFilter !== "all") params.set("active", activeFilter === "active" ? "true" : "false");
+        params.set("page", String(page));
+        params.set("limit", String(PAGE_SIZE));
         fetch(`/api/dashboard?${params.toString()}`)
             .then((r) => r.json())
-            .then((data) => {
-                setMembers(data as DashboardMember[]);
+            .then((res: { total: number; data: DashboardMember[] }) => {
+                setMembers(res.data);
+                setTotal(res.total);
                 setLoading(false);
-                setPage(1);
             });
-    }, [teamFilter, repoFilter, platformFilter, activeFilter]);
+    }, [teamFilter, repoFilter, platformFilter, activeFilter, page]);
 
     const totalOpen = members.reduce((s, m) => s + m.currentLoad, 0);
     const highCount = members.filter((m) => m.workloadLevel === "high").length;
@@ -85,10 +92,6 @@ export default function DashboardClient() {
             ? String(av).localeCompare(String(bv))
             : String(bv).localeCompare(String(av));
     });
-    const pagedMembers = sortedMembers.slice(
-        (page - 1) * PAGE_SIZE,
-        page * PAGE_SIZE,
-    );
 
     return (
         <div>
@@ -104,7 +107,7 @@ export default function DashboardClient() {
             {/* Summary Bar */}
             <div className="mb-6 grid grid-cols-3 gap-4">
                 {[
-                    { label: "Members", value: members.length },
+                    { label: "Members", value: total },
                     { label: "Total Open Issues", value: totalOpen },
                     { label: "High Workload", value: highCount },
                 ].map((stat) => (
@@ -212,7 +215,7 @@ export default function DashboardClient() {
                             </tr>
                         </thead>
                         <tbody>
-                            {pagedMembers.map((member) => (
+                            {sortedMembers.map((member) => (
                                 <tr
                                     key={member.memberId}
                                     className="border-b border-stroke last:border-0 hover:bg-gray-2/50 dark:border-stroke-dark dark:hover:bg-[#1a2535]/50"
@@ -267,7 +270,7 @@ export default function DashboardClient() {
                 )}
                 <Pagination
                     page={page}
-                    totalItems={members.length}
+                    totalItems={total}
                     pageSize={PAGE_SIZE}
                     onPageChange={setPage}
                     className="border-t border-stroke dark:border-stroke-dark"

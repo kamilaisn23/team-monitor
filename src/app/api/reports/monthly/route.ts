@@ -18,6 +18,9 @@ export async function GET(req: NextRequest) {
   const repositoryId = searchParams.get('repositoryId')
   const nameFilter = searchParams.get('name')
   const platform = searchParams.get('platform') || 'all'
+  const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10))
+  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '10', 10)))
+  const skip = (page - 1) * limit
 
   const { start, end } = wibMonthRange(month)
 
@@ -65,7 +68,7 @@ export async function GET(req: NextRequest) {
   const resolvedMap = new Map(resolvedCounts.map((r) => [r.teamMemberId, r._count.issueId]))
   const stillOpenMap = new Map(stillOpenCounts.map((r) => [r.teamMemberId, r._count.issueId]))
 
-  const data = members.map((member) => ({
+  const allRows = members.map((member) => ({
     memberId: member.id,
     name: member.name,
     avatarUrl: member.avatarUrl,
@@ -76,5 +79,17 @@ export async function GET(req: NextRequest) {
     issuesStillOpen: stillOpenMap.get(member.id) ?? 0,
   }))
 
-  return NextResponse.json({ month, data })
+  const totals = allRows.reduce(
+    (acc, row) => ({
+      issuesCreated: acc.issuesCreated + row.issuesCreated,
+      issuesAssigned: acc.issuesAssigned + row.issuesAssigned,
+      issuesResolved: acc.issuesResolved + row.issuesResolved,
+      issuesStillOpen: acc.issuesStillOpen + row.issuesStillOpen,
+    }),
+    { issuesCreated: 0, issuesAssigned: 0, issuesResolved: 0, issuesStillOpen: 0 },
+  )
+
+  const data = allRows.slice(skip, skip + limit)
+
+  return NextResponse.json({ month, total: members.length, totals, data })
 }

@@ -18,6 +18,9 @@ export async function GET(req: NextRequest) {
     const repositoryId = searchParams.get("repositoryId");
     const platform = searchParams.get("platform") || "all";
     const activeParam = searchParams.get("active");
+    const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "10", 10)));
+    const skip = (page - 1) * limit;
 
     const repoFilter = {
         ignored: false,
@@ -28,17 +31,24 @@ export async function GET(req: NextRequest) {
         ...(repoTeamId ? { teams: { some: { teamId: repoTeamId } } } : {}),
     };
 
-    const members = await prisma.teamMember.findMany({
-        where: {
-            role: { not: "UNASSIGNED" },
-            ...(teamId ? { teams: { some: { teamId } } } : {}),
-            ...(activeParam !== null ? { isActive: activeParam === "true" } : {}),
-        },
-        include: {
-            teams: { include: { team: { select: { id: true, name: true } } } },
-        },
-        orderBy: { name: "asc" },
-    });
+    const memberWhere = {
+        role: { not: "UNASSIGNED" as const },
+        ...(teamId ? { teams: { some: { teamId } } } : {}),
+        ...(activeParam !== null ? { isActive: activeParam === "true" } : {}),
+    };
+
+    const [total, members] = await Promise.all([
+        prisma.teamMember.count({ where: memberWhere }),
+        prisma.teamMember.findMany({
+            where: memberWhere,
+            include: {
+                teams: { include: { team: { select: { id: true, name: true } } } },
+            },
+            orderBy: { name: "asc" },
+            skip,
+            take: limit,
+        }),
+    ]);
 
     const memberIds = members.map((m) => m.id);
 
@@ -72,5 +82,5 @@ export async function GET(req: NextRequest) {
         };
     });
 
-    return NextResponse.json(data);
+    return NextResponse.json({ total, data });
 }

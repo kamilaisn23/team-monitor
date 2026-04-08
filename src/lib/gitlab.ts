@@ -66,8 +66,17 @@ export async function fetchGitlabIssues(username: string): Promise<GitLabIssue[]
   return all
 }
 
-// Cache for project URL lookups
+// Cache for project URL lookups (projectId → web_url)
 const projectUrlCache = new Map<number, string>()
+
+export function prewarmProjectUrlCache(repos: { platformId: string; url: string }[]) {
+    for (const { platformId, url } of repos) {
+        const id = parseInt(platformId, 10)
+        if (!isNaN(id) && !projectUrlCache.has(id)) {
+            projectUrlCache.set(id, url)
+        }
+    }
+}
 
 export async function getProjectUrl(projectId: number): Promise<string> {
   if (projectUrlCache.has(projectId)) return projectUrlCache.get(projectId)!
