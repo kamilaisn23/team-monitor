@@ -2,6 +2,7 @@
 
 import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
+import { timeAgo } from "@/lib/wib";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -70,6 +71,16 @@ export function Sidebar() {
     }, [pathname]);
 
     const [syncing, setSyncing] = useState(false);
+    const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+
+    const fetchLastSynced = () => {
+        fetch("/api/sync/status")
+            .then((r) => r.json())
+            .then((d: { lastSyncedAt: string | null }) => setLastSyncedAt(d.lastSyncedAt))
+            .catch(() => {});
+    };
+
+    useEffect(() => { fetchLastSynced(); }, []);
 
     const triggerSync = () => {
         if (syncing) return;
@@ -94,7 +105,7 @@ export function Sidebar() {
                         const decoder = new TextDecoder();
                         let buffer = "";
                         const read = ({ done, value }: ReadableStreamReadResult<Uint8Array>): Promise<void> => {
-                            if (done) { setSyncing(false); return Promise.resolve(); }
+                            if (done) { setSyncing(false); fetchLastSynced(); return Promise.resolve(); }
                             buffer += decoder.decode(value, { stream: true });
                             const parts = buffer.split("\n\n");
                             buffer = parts.pop() ?? "";
@@ -105,6 +116,7 @@ export function Sidebar() {
                                     const event = JSON.parse(line) as { type: string };
                                     if (event.type === "done" || event.type === "error") {
                                         setSyncing(false);
+                                        fetchLastSynced();
                                         return Promise.resolve();
                                     }
                                 } catch { /* ignore */ }
@@ -321,6 +333,11 @@ export function Sidebar() {
                                     {syncing ? "Syncing..." : "Trigger Sync"}
                                 </span>
                             </button>
+                            <p className="mt-1 px-3 text-xs text-dark-4 dark:text-dark-6">
+                                {lastSyncedAt
+                                    ? `Last synced: ${timeAgo(lastSyncedAt)}`
+                                    : "Never synced"}
+                            </p>
                         </div>
 
                 </div>

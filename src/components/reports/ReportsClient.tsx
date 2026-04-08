@@ -22,7 +22,11 @@ export default function ReportsClient() {
     const [total, setTotal] = useState(0);
     const [totals, setTotals] = useState({ issuesCreated: 0, issuesAssigned: 0, issuesResolved: 0, issuesStillOpen: 0 });
     const [loading, setLoading] = useState(true);
+    const [mode, setMode] = useState<"monthly" | "custom">("monthly");
     const [month, setMonth] = useState(wibCurrentMonth);
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
+    const [dateError, setDateError] = useState("");
     const [nameFilter, setNameFilter] = useState("");
     const [repoFilter, setRepoFilter] = useState("");
     const [platformFilter, setPlatformFilter] = useState("all");
@@ -48,11 +52,25 @@ export default function ReportsClient() {
 
     useEffect(() => {
         setPage(1);
-    }, [month, nameFilter, repoFilter, platformFilter]);
+    }, [mode, month, startDate, endDate, nameFilter, repoFilter, platformFilter]);
 
     useEffect(() => {
+        if (mode === "custom") {
+            if (!startDate || !endDate) return;
+            if (startDate > endDate) {
+                setDateError("Start date must be before end date");
+                return;
+            }
+            setDateError("");
+        }
         setLoading(true);
-        const params = new URLSearchParams({ month });
+        const params = new URLSearchParams();
+        if (mode === "custom") {
+            params.set("start", startDate);
+            params.set("end", endDate);
+        } else {
+            params.set("month", month);
+        }
         if (nameFilter) params.set("name", nameFilter);
         if (repoFilter) params.set("repositoryId", repoFilter);
         if (platformFilter !== "all") params.set("platform", platformFilter);
@@ -66,7 +84,7 @@ export default function ReportsClient() {
                 setTotals(d.totals);
                 setLoading(false);
             });
-    }, [month, nameFilter, repoFilter, platformFilter, page]);
+    }, [mode, month, startDate, endDate, nameFilter, repoFilter, platformFilter, page]);
 
     const sortedData = [...data].sort((a, b) => {
         const av = a[sortCol];
@@ -80,7 +98,13 @@ export default function ReportsClient() {
     });
 
     const handleExport = () => {
-        const params = new URLSearchParams({ month });
+        const params = new URLSearchParams();
+        if (mode === "custom") {
+            params.set("start", startDate);
+            params.set("end", endDate);
+        } else {
+            params.set("month", month);
+        }
         if (nameFilter) params.set("name", nameFilter);
         if (repoFilter) params.set("repositoryId", repoFilter);
         if (platformFilter !== "all") params.set("platform", platformFilter);
@@ -108,12 +132,50 @@ export default function ReportsClient() {
 
             {/* Filters */}
             <div className="mb-4 flex flex-wrap gap-3">
-                <input
-                    type="month"
-                    value={month}
-                    onChange={(e) => setMonth(e.target.value)}
-                    className="rounded-lg border border-stroke bg-white px-3 py-2 text-sm dark:border-stroke-dark dark:bg-gray-dark dark:text-white"
-                />
+                {/* Mode toggle */}
+                <div className="flex overflow-hidden rounded-lg border border-stroke dark:border-stroke-dark">
+                    {(["monthly", "custom"] as const).map((m) => (
+                        <button
+                            key={m}
+                            onClick={() => setMode(m)}
+                            className={`px-3 py-2 text-sm font-medium capitalize transition-colors ${
+                                mode === m
+                                    ? "bg-primary text-white"
+                                    : "bg-white text-body hover:bg-gray-2 dark:bg-gray-dark dark:text-dark-6 dark:hover:bg-[#1a2535]"
+                            }`}
+                        >
+                            {m === "monthly" ? "Monthly" : "Custom Range"}
+                        </button>
+                    ))}
+                </div>
+
+                {mode === "monthly" ? (
+                    <input
+                        type="month"
+                        value={month}
+                        onChange={(e) => setMonth(e.target.value)}
+                        className="rounded-lg border border-stroke bg-white px-3 py-2 text-sm dark:border-stroke-dark dark:bg-gray-dark dark:text-white"
+                    />
+                ) : (
+                    <div className="flex flex-wrap items-center gap-2">
+                        <input
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className="rounded-lg border border-stroke bg-white px-3 py-2 text-sm dark:border-stroke-dark dark:bg-gray-dark dark:text-white"
+                        />
+                        <span className="text-sm text-body dark:text-dark-6">to</span>
+                        <input
+                            type="date"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                            className="rounded-lg border border-stroke bg-white px-3 py-2 text-sm dark:border-stroke-dark dark:bg-gray-dark dark:text-white"
+                        />
+                        {dateError && (
+                            <span className="text-xs text-red-500">{dateError}</span>
+                        )}
+                    </div>
+                )}
                 <input
                     type="text"
                     placeholder="Filter by name"

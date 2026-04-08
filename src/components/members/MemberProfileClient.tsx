@@ -56,7 +56,7 @@ export default function MemberProfileClient({ memberId }: { memberId: string }) 
   const [issues, setIssues] = useState<Issue[]>([])
   const [issueTotal, setIssueTotal] = useState(0)
   const [heatmapRecords, setHeatmapRecords] = useState<HeatmapRecord[]>([])
-  const [heatmapDays, setHeatmapDays] = useState(90)
+  const [heatmapDays, setHeatmapDays] = useState(30)
   const [platform, setPlatform] = useState('all')
   const [tab, setTab] = useState<'open' | 'resolved' | 'created'>('open')
   const [page, setPage] = useState(1)
@@ -92,11 +92,11 @@ export default function MemberProfileClient({ memberId }: { memberId: string }) 
   }, [memberId])
 
   useEffect(() => {
-    const params = new URLSearchParams({ days: '30', platform })
+    const params = new URLSearchParams({ days: String(heatmapDays), platform })
     fetch(`/api/members/${memberId}/stats?${params.toString()}`)
       .then((r) => r.json())
       .then((data) => setStats(data as Stats))
-  }, [memberId, platform])
+  }, [memberId, platform, heatmapDays])
 
   useEffect(() => {
     const params = new URLSearchParams({ platform, days: String(heatmapDays) })
@@ -196,9 +196,9 @@ export default function MemberProfileClient({ memberId }: { memberId: string }) 
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-5">
         {[
           { label: 'Open Issues', value: stats?.currentLoad ?? '—' },
-          { label: 'Created (Last 30d)', value: stats?.issuesCreated ?? '—' },
-          { label: 'Assigned (Last 30d)', value: stats?.issuesAssigned ?? '—' },
-          { label: 'Resolved (Last 30d)', value: stats?.issuesResolved ?? '—' },
+          { label: `Created (Last ${heatmapDays}d)`, value: stats?.issuesCreated ?? '—' },
+          { label: `Assigned (Last ${heatmapDays}d)`, value: stats?.issuesAssigned ?? '—' },
+          { label: `Resolved (Last ${heatmapDays}d)`, value: stats?.issuesResolved ?? '—' },
           {
             label: `Stale (${stats?.staleDays ?? '…'}d+)`,
             value: stats?.staleIssues ?? '—',

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { wibMonthRange } from '@/lib/wib'
+import { wibMonthRange, wibDateRange } from '@/lib/wib'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -13,13 +13,29 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = req.nextUrl
   const month = searchParams.get('month')
-  if (!month) return NextResponse.json({ error: 'month is required' }, { status: 400 })
+  const startParam = searchParams.get('start')
+  const endParam = searchParams.get('end')
+
+  let rangeLabel: string
+  let start: Date
+  let end: Date
+
+  if (startParam && endParam) {
+    if (new Date(startParam) > new Date(endParam)) {
+      return NextResponse.json({ error: 'start must be before end' }, { status: 400 })
+    }
+    ;({ start, end } = wibDateRange(startParam, endParam))
+    rangeLabel = `${startParam}_to_${endParam}`
+  } else if (month) {
+    ;({ start, end } = wibMonthRange(month))
+    rangeLabel = month
+  } else {
+    return NextResponse.json({ error: 'month or start+end is required' }, { status: 400 })
+  }
 
   const repositoryId = searchParams.get('repositoryId')
   const nameFilter = searchParams.get('name')
   const platform = searchParams.get('platform') || 'all'
-
-  const { start, end } = wibMonthRange(month)
 
   const repoFilter = {
     ignored: false,
@@ -81,7 +97,7 @@ export async function GET(req: NextRequest) {
   return new NextResponse(csv, {
     headers: {
       'Content-Type': 'text/csv',
-      'Content-Disposition': `attachment; filename="report-${month}.csv"`,
+      'Content-Disposition': `attachment; filename="report-${rangeLabel}.csv"`,
     },
   })
 }

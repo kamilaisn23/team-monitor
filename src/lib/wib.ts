@@ -11,6 +11,16 @@ export function nowWib() {
 }
 
 /**
+ * Given two "YYYY-MM-DD" strings, return UTC Date objects spanning that range
+ * in WIB (UTC+7): start of startDate through end of endDate.
+ */
+export function wibDateRange(startDate: string, endDate: string): { start: Date; end: Date } {
+  const start = dayjs.utc(startDate).startOf('day').subtract(WIB_OFFSET, 'hour').toDate()
+  const end   = dayjs.utc(endDate).endOf('day').subtract(WIB_OFFSET, 'hour').toDate()
+  return { start, end }
+}
+
+/**
  * Given a "YYYY-MM" string, return the UTC Date objects that correspond to
  * the start and end of that calendar month in WIB (UTC+7).
  *
@@ -48,4 +58,14 @@ export function wibCurrentMonth(): string {
 export function formatWib(date: string | Date | null | undefined, fmt: string): string {
   if (!date) return ''
   return dayjs.utc(date).add(WIB_OFFSET, 'hour').format(fmt)
+}
+
+/** Returns a human-readable relative time string, e.g. "5m ago". */
+export function timeAgo(date: string | Date): string {
+  const diffMin = dayjs.utc().diff(dayjs.utc(date), 'minute')
+  if (diffMin < 1) return 'just now'
+  if (diffMin < 60) return `${diffMin}m ago`
+  const diffH = Math.floor(diffMin / 60)
+  if (diffH < 24) return `${diffH}h ago`
+  return `${Math.floor(diffH / 24)}d ago`
 }

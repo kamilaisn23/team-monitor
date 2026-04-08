@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { wibMonthRange } from '@/lib/wib'
+import { wibMonthRange, wibDateRange } from '@/lib/wib'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -13,7 +13,25 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = req.nextUrl
   const month = searchParams.get('month')
-  if (!month) return NextResponse.json({ error: 'month is required (YYYY-MM)' }, { status: 400 })
+  const startParam = searchParams.get('start')
+  const endParam = searchParams.get('end')
+
+  let rangeLabel: string
+  let start: Date
+  let end: Date
+
+  if (startParam && endParam) {
+    if (new Date(startParam) > new Date(endParam)) {
+      return NextResponse.json({ error: 'start must be before end' }, { status: 400 })
+    }
+    ;({ start, end } = wibDateRange(startParam, endParam))
+    rangeLabel = `${startParam}_to_${endParam}`
+  } else if (month) {
+    ;({ start, end } = wibMonthRange(month))
+    rangeLabel = month
+  } else {
+    return NextResponse.json({ error: 'month or start+end is required' }, { status: 400 })
+  }
 
   const repositoryId = searchParams.get('repositoryId')
   const nameFilter = searchParams.get('name')
@@ -21,8 +39,6 @@ export async function GET(req: NextRequest) {
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10))
   const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '10', 10)))
   const skip = (page - 1) * limit
-
-  const { start, end } = wibMonthRange(month)
 
   const repoFilter = {
     ignored: false,
@@ -91,5 +107,5 @@ export async function GET(req: NextRequest) {
 
   const data = allRows.slice(skip, skip + limit)
 
-  return NextResponse.json({ month, total: members.length, totals, data })
+  return NextResponse.json({ month: rangeLabel, total: members.length, totals, data })
 }
