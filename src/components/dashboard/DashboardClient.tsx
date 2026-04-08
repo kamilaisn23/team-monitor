@@ -31,15 +31,21 @@ export default function DashboardClient() {
     const [loading, setLoading] = useState(true);
     const [teamFilter, setTeamFilter] = useState("");
     const [platformFilter, setPlatformFilter] = useState("all");
-    const [activeFilter, setActiveFilter] = useState<"all" | "active" | "inactive">("active");
+    const [activeFilter, setActiveFilter] = useState<
+        "all" | "active" | "inactive"
+    >("active");
     const [teams, setTeams] = useState<{ id: string; name: string }[]>([]);
     const [repos, setRepos] = useState<{ id: string; name: string }[]>([]);
     const [repoFilter, setRepoFilter] = useState("");
     const [page, setPage] = useState(1);
-    const [sortCol, setSortCol] = useState<"name" | "role" | "currentLoad" | "workloadLevel">("name");
+    const [sortCol, setSortCol] = useState<
+        "name" | "role" | "currentLoad" | "workloadLevel"
+    >("name");
     const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
-    const handleSort = (col: "name" | "role" | "currentLoad" | "workloadLevel") => {
+    const handleSort = (
+        col: "name" | "role" | "currentLoad" | "workloadLevel",
+    ) => {
         if (sortCol === col) {
             setSortDir((d) => (d === "asc" ? "desc" : "asc"));
         } else {
@@ -60,7 +66,14 @@ export default function DashboardClient() {
 
     useEffect(() => {
         setPage(1);
-    }, [teamFilter, repoFilter, platformFilter, activeFilter]);
+    }, [
+        teamFilter,
+        repoFilter,
+        platformFilter,
+        activeFilter,
+        sortCol,
+        sortDir,
+    ]);
 
     useEffect(() => {
         setLoading(true);
@@ -68,9 +81,12 @@ export default function DashboardClient() {
         if (teamFilter) params.set("teamId", teamFilter);
         if (repoFilter) params.set("repositoryId", repoFilter);
         if (platformFilter !== "all") params.set("platform", platformFilter);
-        if (activeFilter !== "all") params.set("active", activeFilter === "active" ? "true" : "false");
+        if (activeFilter !== "all")
+            params.set("active", activeFilter === "active" ? "true" : "false");
         params.set("page", String(page));
         params.set("limit", String(PAGE_SIZE));
+        params.set("sortCol", sortCol);
+        params.set("sortDir", sortDir);
         fetch(`/api/dashboard?${params.toString()}`)
             .then((r) => r.json())
             .then((res: { total: number; data: DashboardMember[] }) => {
@@ -78,20 +94,18 @@ export default function DashboardClient() {
                 setTotal(res.total);
                 setLoading(false);
             });
-    }, [teamFilter, repoFilter, platformFilter, activeFilter, page]);
+    }, [
+        teamFilter,
+        repoFilter,
+        platformFilter,
+        activeFilter,
+        page,
+        sortCol,
+        sortDir,
+    ]);
 
     const totalOpen = members.reduce((s, m) => s + m.currentLoad, 0);
     const highCount = members.filter((m) => m.workloadLevel === "high").length;
-    const sortedMembers = [...members].sort((a, b) => {
-        const av = a[sortCol];
-        const bv = b[sortCol];
-        if (typeof av === "number" && typeof bv === "number") {
-            return sortDir === "asc" ? av - bv : bv - av;
-        }
-        return sortDir === "asc"
-            ? String(av).localeCompare(String(bv))
-            : String(bv).localeCompare(String(av));
-    });
 
     return (
         <div>
@@ -162,7 +176,11 @@ export default function DashboardClient() {
                 </select>
                 <select
                     value={activeFilter}
-                    onChange={(e) => setActiveFilter(e.target.value as "all" | "active" | "inactive")}
+                    onChange={(e) =>
+                        setActiveFilter(
+                            e.target.value as "all" | "active" | "inactive",
+                        )
+                    }
                     className="rounded-lg border border-stroke bg-white px-3 py-2 text-sm dark:border-stroke-dark dark:bg-gray-dark dark:text-white"
                 >
                     <option value="active">Active Members</option>
@@ -189,13 +207,23 @@ export default function DashboardClient() {
                                     onClick={() => handleSort("name")}
                                     className="cursor-pointer select-none px-4 py-3 text-left text-sm font-medium text-body hover:text-dark dark:text-dark-6 dark:hover:text-white"
                                 >
-                                    Member {sortCol === "name" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                                    Member{" "}
+                                    {sortCol === "name"
+                                        ? sortDir === "asc"
+                                            ? "↑"
+                                            : "↓"
+                                        : ""}
                                 </th>
                                 <th
                                     onClick={() => handleSort("role")}
                                     className="cursor-pointer select-none px-4 py-3 text-left text-sm font-medium text-body hover:text-dark dark:text-dark-6 dark:hover:text-white"
                                 >
-                                    Role {sortCol === "role" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                                    Role{" "}
+                                    {sortCol === "role"
+                                        ? sortDir === "asc"
+                                            ? "↑"
+                                            : "↓"
+                                        : ""}
                                 </th>
                                 <th className="px-4 py-3 text-left text-sm font-medium text-body dark:text-dark-6">
                                     Teams
@@ -204,18 +232,28 @@ export default function DashboardClient() {
                                     onClick={() => handleSort("currentLoad")}
                                     className="cursor-pointer select-none px-4 py-3 text-right text-sm font-medium text-body hover:text-dark dark:text-dark-6 dark:hover:text-white"
                                 >
-                                    Open Issues {sortCol === "currentLoad" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                                    Open Issues{" "}
+                                    {sortCol === "currentLoad"
+                                        ? sortDir === "asc"
+                                            ? "↑"
+                                            : "↓"
+                                        : ""}
                                 </th>
                                 <th
                                     onClick={() => handleSort("workloadLevel")}
                                     className="cursor-pointer select-none px-4 py-3 text-left text-sm font-medium text-body hover:text-dark dark:text-dark-6 dark:hover:text-white"
                                 >
-                                    Workload {sortCol === "workloadLevel" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                                    Workload{" "}
+                                    {sortCol === "workloadLevel"
+                                        ? sortDir === "asc"
+                                            ? "↑"
+                                            : "↓"
+                                        : ""}
                                 </th>
                             </tr>
                         </thead>
                         <tbody>
-                            {sortedMembers.map((member) => (
+                            {members.map((member) => (
                                 <tr
                                     key={member.memberId}
                                     className="border-b border-stroke last:border-0 hover:bg-gray-2/50 dark:border-stroke-dark dark:hover:bg-[#1a2535]/50"

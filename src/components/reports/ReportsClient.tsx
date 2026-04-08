@@ -20,7 +20,12 @@ const PAGE_SIZE = 10;
 export default function ReportsClient() {
     const [data, setData] = useState<ReportRow[]>([]);
     const [total, setTotal] = useState(0);
-    const [totals, setTotals] = useState({ issuesCreated: 0, issuesAssigned: 0, issuesResolved: 0, issuesStillOpen: 0 });
+    const [totals, setTotals] = useState({
+        issuesCreated: 0,
+        issuesAssigned: 0,
+        issuesResolved: 0,
+        issuesStillOpen: 0,
+    });
     const [loading, setLoading] = useState(true);
     const [mode, setMode] = useState<"monthly" | "custom">("monthly");
     const [month, setMonth] = useState(wibCurrentMonth);
@@ -42,6 +47,7 @@ export default function ReportsClient() {
             setSortCol(col);
             setSortDir("desc");
         }
+        setPage(1);
     };
 
     useEffect(() => {
@@ -52,7 +58,15 @@ export default function ReportsClient() {
 
     useEffect(() => {
         setPage(1);
-    }, [mode, month, startDate, endDate, nameFilter, repoFilter, platformFilter]);
+    }, [
+        mode,
+        month,
+        startDate,
+        endDate,
+        nameFilter,
+        repoFilter,
+        platformFilter,
+    ]);
 
     useEffect(() => {
         if (mode === "custom") {
@@ -76,26 +90,36 @@ export default function ReportsClient() {
         if (platformFilter !== "all") params.set("platform", platformFilter);
         params.set("page", String(page));
         params.set("limit", String(PAGE_SIZE));
+        params.set("sort", sortCol);
+        params.set("sortDir", sortDir);
         fetch(`/api/reports/monthly?${params.toString()}`)
             .then((r) => r.json())
-            .then((d: { data: ReportRow[]; total: number; totals: typeof totals }) => {
-                setData(d.data);
-                setTotal(d.total);
-                setTotals(d.totals);
-                setLoading(false);
-            });
-    }, [mode, month, startDate, endDate, nameFilter, repoFilter, platformFilter, page]);
+            .then(
+                (d: {
+                    data: ReportRow[];
+                    total: number;
+                    totals: typeof totals;
+                }) => {
+                    setData(d.data);
+                    setTotal(d.total);
+                    setTotals(d.totals);
+                    setLoading(false);
+                },
+            );
+    }, [
+        mode,
+        month,
+        startDate,
+        endDate,
+        nameFilter,
+        repoFilter,
+        platformFilter,
+        page,
+        sortCol,
+        sortDir,
+    ]);
 
-    const sortedData = [...data].sort((a, b) => {
-        const av = a[sortCol];
-        const bv = b[sortCol];
-        if (typeof av === "number" && typeof bv === "number") {
-            return sortDir === "asc" ? av - bv : bv - av;
-        }
-        return sortDir === "asc"
-            ? String(av).localeCompare(String(bv))
-            : String(bv).localeCompare(String(av));
-    });
+    const sortedData = data;
 
     const handleExport = () => {
         const params = new URLSearchParams();
@@ -164,7 +188,9 @@ export default function ReportsClient() {
                             onChange={(e) => setStartDate(e.target.value)}
                             className="rounded-lg border border-stroke bg-white px-3 py-2 text-sm dark:border-stroke-dark dark:bg-gray-dark dark:text-white"
                         />
-                        <span className="text-sm text-body dark:text-dark-6">to</span>
+                        <span className="text-sm text-body dark:text-dark-6">
+                            to
+                        </span>
                         <input
                             type="date"
                             value={endDate}
@@ -172,7 +198,9 @@ export default function ReportsClient() {
                             className="rounded-lg border border-stroke bg-white px-3 py-2 text-sm dark:border-stroke-dark dark:bg-gray-dark dark:text-white"
                         />
                         {dateError && (
-                            <span className="text-xs text-red-500">{dateError}</span>
+                            <span className="text-xs text-red-500">
+                                {dateError}
+                            </span>
                         )}
                     </div>
                 )}
@@ -217,11 +245,26 @@ export default function ReportsClient() {
                                     [
                                         { label: "Name", col: "name" },
                                         { label: "Role", col: "role" },
-                                        { label: "Created", col: "issuesCreated" },
-                                        { label: "Assigned", col: "issuesAssigned" },
-                                        { label: "Resolved", col: "issuesResolved" },
-                                        { label: "Still Open", col: "issuesStillOpen" },
-                                    ] as { label: string; col: keyof ReportRow }[]
+                                        {
+                                            label: "Created",
+                                            col: "issuesCreated",
+                                        },
+                                        {
+                                            label: "Assigned",
+                                            col: "issuesAssigned",
+                                        },
+                                        {
+                                            label: "Resolved",
+                                            col: "issuesResolved",
+                                        },
+                                        {
+                                            label: "Still Open",
+                                            col: "issuesStillOpen",
+                                        },
+                                    ] as {
+                                        label: string;
+                                        col: keyof ReportRow;
+                                    }[]
                                 ).map(({ label, col }) => (
                                     <th
                                         key={col}
@@ -229,7 +272,11 @@ export default function ReportsClient() {
                                         className="cursor-pointer select-none px-4 py-3 text-left text-sm font-medium text-body hover:text-dark dark:text-dark-6 dark:hover:text-white"
                                     >
                                         {label}{" "}
-                                        {sortCol === col ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                                        {sortCol === col
+                                            ? sortDir === "asc"
+                                                ? "↑"
+                                                : "↓"
+                                            : ""}
                                     </th>
                                 ))}
                             </tr>
