@@ -111,8 +111,8 @@ model Issue {
   closedAt            DateTime?  @map("closed_at")
   syncedAt            DateTime   @default(now()) @updatedAt @map("synced_at")
 
-  repository Repository    @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
-  creator    TeamMember?   @relation("IssueCreator", fields: [creatorTeamMemberId], references: [id], onDelete: SetNull)
+  repository Repository      @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  creator    TeamMember?     @relation("IssueCreator", fields: [creatorTeamMemberId], references: [id], onDelete: SetNull)
   assignees  IssueAssignee[]
 
   @@unique([platformId, repositoryId])
