@@ -47,6 +47,7 @@ export async function GET(req: NextRequest) {
     const repositoryId = searchParams.get("repositoryId");
     const nameFilter = searchParams.get("name");
     const platform = searchParams.get("platform") || "all";
+    const groupBy = searchParams.get("groupBy"); // "team" or null
     const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
     const limit = Math.min(
         100,
@@ -90,6 +91,9 @@ export async function GET(req: NextRequest) {
                       },
                   }
                 : {}),
+        },
+        include: {
+            teams: { include: { team: { select: { id: true, name: true } } } },
         },
         orderBy: { name: "asc" },
     });
@@ -158,12 +162,73 @@ export async function GET(req: NextRequest) {
         name: member.name,
         avatarUrl: member.avatarUrl,
         role: member.role,
+        teamIds: member.teams.map((t) => t.team.id),
+        teamNames: member.teams.map((t) => t.team.name),
         issuesCreated: createdMap.get(member.id) ?? 0,
         issuesAssigned: assignedMap.get(member.id) ?? 0,
         issuesResolved: resolvedMap.get(member.id) ?? 0,
         issuesStillOpen: stillOpenMap.get(member.id) ?? 0,
     }));
 
+    if (groupBy === "team") {
+        // Build team groups
+        const teamMap = new Map<
+            string,
+            {
+                teamId: string;
+                teamName: string;
+                members: typeof allRows;
+                totals: {
+                    issuesCreated: number;
+                    issuesAssigned: number;
+                    issuesResolved: number;
+                    issuesStillOpen: number;
+                };
+            }
+        >();
+
+        for (const row of allRows) {
+            const teamEntries =
+                row.teamIds.length > 0
+                    ? row.teamIds.map((id, i) => ({
+                          id,
+                          name: row.teamNames[i] ?? "",
+                      }))
+                    : [{ id: "__none__", name: "(No Team)" }];
+
+            for (const team of teamEntries) {
+                if (!teamMap.has(team.id)) {
+                    teamMap.set(team.id, {
+                        teamId: team.id,
+                        teamName: team.name,
+                        members: [],
+                        totals: {
+                            issuesCreated: 0,
+                            issuesAssigned: 0,
+                            issuesResolved: 0,
+                            issuesStillOpen: 0,
+                        },
+                    });
+                }
+                const entry = teamMap.get(team.id)!;
+                entry.members.push(row);
+                entry.totals.issuesCreated += row.issuesCreated;
+                entry.totals.issuesAssigned += row.issuesAssigned;
+                entry.totals.issuesResolved += row.issuesResolved;
+                entry.totals.issuesStillOpen += row.issuesStillOpen;
+            }
+        }
+
+        const groups = Array.from(teamMap.values()).sort((a, b) => {
+            if (a.teamId === "__none__") return 1;
+            if (b.teamId === "__none__") return -1;
+            return a.teamName.localeCompare(b.teamName);
+        });
+
+        return NextResponse.json({ month: rangeLabel, groups });
+    }
+
+    // Default: flat member view
     const totals = allRows.reduce(
         (acc, row) => ({
             issuesCreated: acc.issuesCreated + row.issuesCreated,

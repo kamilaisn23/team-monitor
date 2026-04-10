@@ -34,6 +34,7 @@ export default function DashboardClient() {
     const [activeFilter, setActiveFilter] = useState<
         "all" | "active" | "inactive"
     >("active");
+    const [nameFilter, setNameFilter] = useState("");
     const [teams, setTeams] = useState<{ id: string; name: string }[]>([]);
     const [repos, setRepos] = useState<{ id: string; name: string }[]>([]);
     const [repoFilter, setRepoFilter] = useState("");
@@ -71,6 +72,7 @@ export default function DashboardClient() {
         repoFilter,
         platformFilter,
         activeFilter,
+        nameFilter,
         sortCol,
         sortDir,
     ]);
@@ -87,6 +89,7 @@ export default function DashboardClient() {
         params.set("limit", String(PAGE_SIZE));
         params.set("sortCol", sortCol);
         params.set("sortDir", sortDir);
+        if (nameFilter) params.set("name", nameFilter);
         fetch(`/api/dashboard?${params.toString()}`)
             .then((r) => r.json())
             .then((res: { total: number; data: DashboardMember[] }) => {
@@ -99,6 +102,7 @@ export default function DashboardClient() {
         repoFilter,
         platformFilter,
         activeFilter,
+        nameFilter,
         page,
         sortCol,
         sortDir,
@@ -187,6 +191,13 @@ export default function DashboardClient() {
                     <option value="inactive">Inactive Members</option>
                     <option value="all">All Members</option>
                 </select>
+                <input
+                    type="text"
+                    placeholder="Filter by name"
+                    value={nameFilter}
+                    onChange={(e) => setNameFilter(e.target.value)}
+                    className="rounded-lg border border-stroke bg-white px-3 py-2 text-sm dark:border-stroke-dark dark:bg-gray-dark dark:text-white"
+                />
             </div>
 
             {/* Table */}

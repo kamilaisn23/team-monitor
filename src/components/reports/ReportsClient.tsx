@@ -9,16 +9,31 @@ interface ReportRow {
     memberId: string;
     name: string;
     role: string;
+    teamIds?: string[];
+    teamNames?: string[];
     issuesCreated: number;
     issuesAssigned: number;
     issuesResolved: number;
     issuesStillOpen: number;
 }
 
+interface TeamGroup {
+    teamId: string;
+    teamName: string;
+    members: ReportRow[];
+    totals: {
+        issuesCreated: number;
+        issuesAssigned: number;
+        issuesResolved: number;
+        issuesStillOpen: number;
+    };
+}
+
 const PAGE_SIZE = 10;
 
 export default function ReportsClient() {
     const [data, setData] = useState<ReportRow[]>([]);
+    const [groups, setGroups] = useState<TeamGroup[]>([]);
     const [total, setTotal] = useState(0);
     const [totals, setTotals] = useState({
         issuesCreated: 0,
@@ -39,6 +54,8 @@ export default function ReportsClient() {
     const [page, setPage] = useState(1);
     const [sortCol, setSortCol] = useState<keyof ReportRow>("issuesResolved");
     const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+    const [viewMode, setViewMode] = useState<"member" | "team">("member");
+    const [expandedTeams, setExpandedTeams] = useState<Set<string>>(new Set());
 
     const handleSort = (col: keyof ReportRow) => {
         if (sortCol === col) {
@@ -48,6 +65,15 @@ export default function ReportsClient() {
             setSortDir("desc");
         }
         setPage(1);
+    };
+
+    const toggleTeam = (teamId: string) => {
+        setExpandedTeams((prev) => {
+            const next = new Set(prev);
+            if (next.has(teamId)) next.delete(teamId);
+            else next.add(teamId);
+            return next;
+        });
     };
 
     useEffect(() => {
@@ -66,6 +92,7 @@ export default function ReportsClient() {
         nameFilter,
         repoFilter,
         platformFilter,
+        viewMode,
     ]);
 
     useEffect(() => {
@@ -88,21 +115,30 @@ export default function ReportsClient() {
         if (nameFilter) params.set("name", nameFilter);
         if (repoFilter) params.set("repositoryId", repoFilter);
         if (platformFilter !== "all") params.set("platform", platformFilter);
+        if (viewMode === "team") params.set("groupBy", "team");
         params.set("page", String(page));
         params.set("limit", String(PAGE_SIZE));
-        params.set("sort", sortCol);
+        params.set("sort", String(sortCol));
         params.set("sortDir", sortDir);
         fetch(`/api/reports/monthly?${params.toString()}`)
             .then((r) => r.json())
             .then(
                 (d: {
-                    data: ReportRow[];
-                    total: number;
-                    totals: typeof totals;
+                    data?: ReportRow[];
+                    total?: number;
+                    totals?: typeof totals;
+                    groups?: TeamGroup[];
                 }) => {
-                    setData(d.data);
-                    setTotal(d.total);
-                    setTotals(d.totals);
+                    if (viewMode === "team" && d.groups) {
+                        setGroups(d.groups);
+                        setData([]);
+                        setTotal(0);
+                    } else {
+                        setData(d.data ?? []);
+                        setTotal(d.total ?? 0);
+                        setTotals(d.totals ?? totals);
+                        setGroups([]);
+                    }
                     setLoading(false);
                 },
             );
@@ -117,9 +153,8 @@ export default function ReportsClient() {
         page,
         sortCol,
         sortDir,
+        viewMode,
     ]);
-
-    const sortedData = data;
 
     const handleExport = () => {
         const params = new URLSearchParams();
@@ -232,12 +267,129 @@ export default function ReportsClient() {
                     <option value="github">GitHub</option>
                     <option value="gitlab">GitLab</option>
                 </select>
+
+                {/* View mode toggle */}
+                <div className="flex overflow-hidden rounded-lg border border-stroke dark:border-stroke-dark">
+                    {(["member", "team"] as const).map((vm) => (
+                        <button
+                            key={vm}
+                            onClick={() => setViewMode(vm)}
+                            className={`px-3 py-2 text-sm font-medium capitalize transition-colors ${
+                                viewMode === vm
+                                    ? "bg-primary text-white"
+                                    : "bg-white text-body hover:bg-gray-2 dark:bg-gray-dark dark:text-dark-6 dark:hover:bg-[#1a2535]"
+                            }`}
+                        >
+                            {vm === "member" ? "By Member" : "By Team"}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             <div className="overflow-hidden rounded-xl border border-stroke bg-white dark:border-stroke-dark dark:bg-gray-dark">
                 {loading ? (
                     <div className="p-8 text-center text-body">Loading...</div>
+                ) : viewMode === "team" ? (
+                    /* Team grouped view */
+                    <table className="w-full">
+                        <thead>
+                            <tr className="border-b border-stroke bg-gray-2 dark:border-stroke-dark dark:bg-[#1a2535]">
+                                <th className="px-4 py-3 text-left text-sm font-medium text-body dark:text-dark-6">
+                                    Team / Member
+                                </th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-body dark:text-dark-6">
+                                    Created
+                                </th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-body dark:text-dark-6">
+                                    Assigned
+                                </th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-body dark:text-dark-6">
+                                    Resolved
+                                </th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-body dark:text-dark-6">
+                                    Still Open
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {groups.map((group) => (
+                                <>
+                                    <tr
+                                        key={group.teamId}
+                                        className="cursor-pointer border-b border-stroke bg-gray-2/80 font-semibold hover:bg-gray-2 dark:border-stroke-dark dark:bg-[#1a2535] dark:hover:bg-[#1e2d42]"
+                                        onClick={() => toggleTeam(group.teamId)}
+                                    >
+                                        <td className="px-4 py-3 text-sm text-dark dark:text-white">
+                                            <span className="mr-2 text-xs">
+                                                {expandedTeams.has(group.teamId)
+                                                    ? "▼"
+                                                    : "▶"}
+                                            </span>
+                                            {group.teamName}
+                                            <span className="ml-2 text-xs font-normal text-body dark:text-dark-6">
+                                                ({group.members.length} members)
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3 text-sm text-dark dark:text-white">
+                                            {group.totals.issuesCreated}
+                                        </td>
+                                        <td className="px-4 py-3 text-sm text-dark dark:text-white">
+                                            {group.totals.issuesAssigned}
+                                        </td>
+                                        <td className="px-4 py-3 text-sm text-dark dark:text-white">
+                                            {group.totals.issuesResolved}
+                                        </td>
+                                        <td className="px-4 py-3 text-sm text-dark dark:text-white">
+                                            {group.totals.issuesStillOpen}
+                                        </td>
+                                    </tr>
+                                    {expandedTeams.has(group.teamId) &&
+                                        group.members.map((member) => (
+                                            <tr
+                                                key={`${group.teamId}-${member.memberId}`}
+                                                className="border-b border-stroke hover:bg-gray-2/50 dark:border-stroke-dark dark:hover:bg-[#1a2535]/50"
+                                            >
+                                                <td className="py-3 pl-10 pr-4 text-sm">
+                                                    <Link
+                                                        href={`/members/${member.memberId}`}
+                                                        className="font-medium text-dark hover:text-primary dark:text-white"
+                                                    >
+                                                        {member.name}
+                                                    </Link>
+                                                    <span className="ml-2 text-xs text-body dark:text-dark-6">
+                                                        {member.role}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-dark dark:text-white">
+                                                    {member.issuesCreated}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-dark dark:text-white">
+                                                    {member.issuesAssigned}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-dark dark:text-white">
+                                                    {member.issuesResolved}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-dark dark:text-white">
+                                                    {member.issuesStillOpen}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                </>
+                            ))}
+                            {groups.length === 0 && (
+                                <tr>
+                                    <td
+                                        colSpan={5}
+                                        className="p-8 text-center text-body dark:text-dark-6"
+                                    >
+                                        No data found.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
                 ) : (
+                    /* Member view */
                     <table className="w-full">
                         <thead>
                             <tr className="border-b border-stroke bg-gray-2 dark:border-stroke-dark dark:bg-[#1a2535]">
@@ -282,7 +434,7 @@ export default function ReportsClient() {
                             </tr>
                         </thead>
                         <tbody>
-                            {sortedData.map((row) => (
+                            {data.map((row) => (
                                 <tr
                                     key={row.memberId}
                                     className="border-b border-stroke hover:bg-gray-2/50 dark:border-stroke-dark dark:hover:bg-[#1a2535]/50"
@@ -337,7 +489,7 @@ export default function ReportsClient() {
                         </tbody>
                     </table>
                 )}
-                {!loading && total > PAGE_SIZE && (
+                {!loading && viewMode === "member" && total > PAGE_SIZE && (
                     <div className="border-t border-stroke dark:border-stroke-dark">
                         <Pagination
                             page={page}

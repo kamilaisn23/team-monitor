@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
     const repositoryId = searchParams.get("repositoryId");
     const platform = searchParams.get("platform") || "all";
     const activeParam = searchParams.get("active");
+    const nameFilter = searchParams.get("name");
     const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
     const limit = Math.min(
         100,
@@ -47,6 +48,9 @@ export async function GET(req: NextRequest) {
         role: { not: "UNASSIGNED" as const },
         ...(teamId ? { teams: { some: { teamId } } } : {}),
         ...(activeParam !== null ? { isActive: activeParam === "true" } : {}),
+        ...(nameFilter
+            ? { name: { contains: nameFilter, mode: "insensitive" as const } }
+            : {}),
     };
 
     // Fetch all members without pagination so sorting applies across the full dataset
