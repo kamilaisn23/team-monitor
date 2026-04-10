@@ -343,6 +343,54 @@ export default function MemberProfileClient({
                 ))}
             </div>
 
+            {/* Activity Heatmap */}
+            <div className="mb-6 rounded-xl border border-stroke bg-white p-5 dark:border-stroke-dark dark:bg-gray-dark">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                        <h3 className="text-sm font-semibold text-dark dark:text-white">
+                            Resolution Activity
+                        </h3>
+                        <p className="text-xs text-body dark:text-dark-6">
+                            Hour of day (WIB, UTC+7) × date — issues resolved
+                        </p>
+                    </div>
+                </div>
+                {heatmapDays === 0 ? (
+                    <div className="flex h-[240px] items-center justify-center text-sm text-body dark:text-dark-6">
+                        Select a time window (30d / 90d / 180d) to view the
+                        activity heatmap.
+                    </div>
+                ) : hasTimeline ? (
+                    <ActivityChart
+                        records={heatmapRecords}
+                        days={heatmapDays}
+                    />
+                ) : (
+                    <div className="flex h-[240px] items-center justify-center text-sm text-body dark:text-dark-6">
+                        No resolved issues in the last {heatmapDays} days.
+                    </div>
+                )}
+                {heatmapDays > 0 && (
+                    <div className="mt-2 flex items-center justify-end gap-1.5 text-xs text-body dark:text-dark-6">
+                        <span>Less</span>
+                        {[
+                            "#ebedf0",
+                            "#9be9a8",
+                            "#40c463",
+                            "#30a14e",
+                            "#216e39",
+                        ].map((c) => (
+                            <span
+                                key={c}
+                                className="inline-block h-3 w-3 rounded-sm"
+                                style={{ backgroundColor: c }}
+                            />
+                        ))}
+                        <span>More</span>
+                    </div>
+                )}
+            </div>
+
             {/* Repositories section */}
             <div className="mb-6 rounded-xl border border-stroke bg-white dark:border-stroke-dark dark:bg-gray-dark">
                 <div className="flex items-center justify-between border-b border-stroke px-5 py-3.5 dark:border-stroke-dark">
@@ -439,54 +487,6 @@ export default function MemberProfileClient({
                                 ))}
                             </tbody>
                         </table>
-                    </div>
-                )}
-            </div>
-
-            {/* Activity Heatmap */}
-            <div className="mb-6 rounded-xl border border-stroke bg-white p-5 dark:border-stroke-dark dark:bg-gray-dark">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                    <div>
-                        <h3 className="text-sm font-semibold text-dark dark:text-white">
-                            Resolution Activity
-                        </h3>
-                        <p className="text-xs text-body dark:text-dark-6">
-                            Hour of day (WIB, UTC+7) × date — issues resolved
-                        </p>
-                    </div>
-                </div>
-                {heatmapDays === 0 ? (
-                    <div className="flex h-[240px] items-center justify-center text-sm text-body dark:text-dark-6">
-                        Select a time window (30d / 90d / 180d) to view the
-                        activity heatmap.
-                    </div>
-                ) : hasTimeline ? (
-                    <ActivityChart
-                        records={heatmapRecords}
-                        days={heatmapDays}
-                    />
-                ) : (
-                    <div className="flex h-[240px] items-center justify-center text-sm text-body dark:text-dark-6">
-                        No resolved issues in the last {heatmapDays} days.
-                    </div>
-                )}
-                {heatmapDays > 0 && (
-                    <div className="mt-2 flex items-center justify-end gap-1.5 text-xs text-body dark:text-dark-6">
-                        <span>Less</span>
-                        {[
-                            "#ebedf0",
-                            "#9be9a8",
-                            "#40c463",
-                            "#30a14e",
-                            "#216e39",
-                        ].map((c) => (
-                            <span
-                                key={c}
-                                className="inline-block h-3 w-3 rounded-sm"
-                                style={{ backgroundColor: c }}
-                            />
-                        ))}
-                        <span>More</span>
                     </div>
                 )}
             </div>
