@@ -33,11 +33,7 @@ COPY --from=builder /app/scripts-dist/sync-worker.js ./scripts/sync-worker.js
 COPY --from=builder /app/scripts-dist/sync-manager.js ./lib/sync-manager.js
 COPY --from=builder /app/src ./src
 COPY --from=builder /app/tsconfig*.json ./
+ENV HOSTNAME=0.0.0.0
 EXPOSE 3000
+CMD ["sh", "-c", "npx prisma db push --skip-generate && node server.js"]
 
-# ── sync-runner: lightweight image for the cron worker (no Next.js build) ────
-FROM base AS sync-runner
-ENV NODE_ENV=production
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-RUN npx prisma generate
