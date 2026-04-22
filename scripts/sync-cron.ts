@@ -7,19 +7,45 @@ dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 async function main() {
     const { runSync } = await import("../src/lib/sync");
+    const { runKerjabaikSync } = await import("../src/lib/sync-kerjabaik");
 
-    const DEFAULT_SCHEDULE = "0 19 * * *"; // 02:00 WIB = 19:00 UTC
-    const schedule = process.env.SYNC_CRON_SCHEDULE ?? DEFAULT_SCHEDULE;
+    const DEFAULT_GH_GL_SCHEDULE = "0 19 * * *"; // 02:00 WIB = 19:00 UTC
+    const DEFAULT_KERJABAIK_SCHEDULE = "0 * * * *"; // every hour
 
-    if (!cron.validate(schedule)) {
+    const ghGlSchedule = process.env.SYNC_CRON_SCHEDULE ?? DEFAULT_GH_GL_SCHEDULE;
+    const kerjabaikSchedule = process.env.KERJABAIK_SYNC_CRON_SCHEDULE ?? DEFAULT_KERJABAIK_SCHEDULE;
+
+    if (!cron.validate(ghGlSchedule)) {
         console.error(
-            `[sync] Invalid SYNC_CRON_SCHEDULE: "${schedule}". Falling back to default "${DEFAULT_SCHEDULE}"`,
+            `[sync] Invalid SYNC_CRON_SCHEDULE: "${ghGlSchedule}". Falling back to default "${DEFAULT_GH_GL_SCHEDULE}"`,
         );
     }
 
-    const validSchedule = cron.validate(schedule) ? schedule : DEFAULT_SCHEDULE;
+    const validGhGlSchedule = cron.validate(ghGlSchedule) ? ghGlSchedule : DEFAULT_GH_GL_SCHEDULE;
+    const validKerjabaikSchedule = cron.validate(kerjabaikSchedule) ? kerjabaikSchedule : DEFAULT_KERJABAIK_SCHEDULE;
 
-    cron.schedule(validSchedule, async () => {
+    // Hourly: sync employees from kerjabaik
+    cron.schedule(validKerjabaikSchedule, async () => {
+        console.log(`[sync-kerjabaik] Starting scheduled sync at ${new Date().toISOString()}`);
+        try {
+            await runKerjabaikSync((event) => {
+                if (event.type === "kerjabaik_start") {
+                    console.log("[sync-kerjabaik] Fetching employees...");
+                } else if (event.type === "kerjabaik_done") {
+                    console.log(
+                        `[sync-kerjabaik] Done — ${event.upserted} upserted, ${event.deactivated} deactivated (${event.durationSeconds}s)`,
+                    );
+                } else if (event.type === "kerjabaik_error") {
+                    console.error(`[sync-kerjabaik] Error: ${event.error}`);
+                }
+            });
+        } catch (err) {
+            console.error("[sync-kerjabaik] Scheduled sync failed:", err);
+        }
+    });
+
+    // Daily: sync issues from GitHub + GitLab
+    cron.schedule(validGhGlSchedule, async () => {
         console.log(
             `[sync] Starting scheduled sync at ${new Date().toISOString()}`,
         );
@@ -57,9 +83,8 @@ async function main() {
         }
     });
 
-    console.log(
-        `[sync] Scheduler started with schedule "${validSchedule}" (SYNC_CRON_SCHEDULE env var to override)`,
-    );
+    console.log(`[sync] GitHub/GitLab scheduler started — schedule: "${validGhGlSchedule}"`);
+    console.log(`[sync] Kerjabaik scheduler started — schedule: "${validKerjabaikSchedule}"`);
 }
 
 main().catch((err) => {

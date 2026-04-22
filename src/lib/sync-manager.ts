@@ -55,7 +55,7 @@ function resolveWorkerPath(): string {
     );
 }
 
-export function createSyncJob(): string {
+export function createSyncJob(source = "all"): string {
     const jobId = `sync_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
     const job: SyncJob = {
@@ -80,6 +80,7 @@ export function createSyncJob(): string {
     const workerPath = resolveWorkerPath();
 
     const worker = new Worker(workerPath, {
+        workerData: { source },
         env: { ...process.env },
     });
 

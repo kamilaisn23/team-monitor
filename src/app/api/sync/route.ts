@@ -10,19 +10,25 @@ function getSyncManager() {
         throw new Error("SYNC_MANAGER_PATH environment variable is not set.");
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     return require(/* turbopackIgnore: true */ managerPath) as {
-        createSyncJob: () => string;
+        createSyncJob: (source?: string) => string;
         getJob: (id: string) => SyncJob | undefined;
         isJobRunning: () => boolean;
         getCooldownSecondsRemaining: () => number;
     };
 }
 
-export async function POST() {
+const VALID_SOURCES = new Set(["kerjabaik", "github", "gitlab", "all"])
+
+export async function POST(req: Request) {
     const session = await auth();
     if (!session)
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
             status: 401,
         });
+
+    const { searchParams } = new URL(req.url)
+    const rawSource = searchParams.get("source") ?? "all"
+    const source = VALID_SOURCES.has(rawSource) ? rawSource : "all"
 
     const { createSyncJob, isJobRunning, getCooldownSecondsRemaining } = getSyncManager();
 
@@ -47,8 +53,8 @@ export async function POST() {
         );
     }
 
-    const jobId = createSyncJob();
-    return new Response(JSON.stringify({ jobId }), {
+    const jobId = createSyncJob(source);
+    return new Response(JSON.stringify({ jobId, source }), {
         status: 202,
         headers: { "Content-Type": "application/json" },
     });

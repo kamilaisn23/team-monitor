@@ -12,16 +12,25 @@ async function main() {
   }
 
   const port = parentPort
+  const source: string = workerData?.source ?? 'all'
 
   // Register tsconfig-paths so @/ aliases resolve
   require('tsconfig-paths/register')
 
-  const { runSync } = await import('../src/lib/sync')
-
   try {
-    await runSync((event) => {
-      port.postMessage(event)
-    })
+    if (source === 'kerjabaik') {
+      const { runKerjabaikSync } = await import('../src/lib/sync-kerjabaik')
+      await runKerjabaikSync((event) => port.postMessage(event))
+    } else if (source === 'github' || source === 'gitlab') {
+      const { runSync } = await import('../src/lib/sync')
+      await runSync((event) => port.postMessage(event))
+    } else {
+      // 'all' (default): kerjabaik first, then github+gitlab
+      const { runKerjabaikSync } = await import('../src/lib/sync-kerjabaik')
+      const { runSync } = await import('../src/lib/sync')
+      await runKerjabaikSync((event) => port.postMessage(event))
+      await runSync((event) => port.postMessage(event))
+    }
   } catch (err: unknown) {
     port.postMessage({
       type: 'error',
