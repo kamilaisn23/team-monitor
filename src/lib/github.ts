@@ -26,9 +26,11 @@ async function fetchPage(url: string, attempt = 0): Promise<Response> {
       'X-GitHub-Api-Version': '2022-11-28',
     },
   })
-  if (res.status === 429 && attempt < 3) {
-    const retryAfter = parseInt(res.headers.get('Retry-After') || '60') * 1000
-    console.log(`[github] Rate limited — waiting ${retryAfter}ms`)
+  // GitHub secondary rate limit returns 403 (not 429) with a specific message.
+  // Treat both the same: back off and retry up to 3 times.
+  if ((res.status === 429 || res.status === 403) && attempt < 3) {
+    const retryAfter = parseInt(res.headers.get('Retry-After') || '0') * 1000 || 60_000
+    console.warn(`[github] Rate limited (${res.status}) — waiting ${retryAfter / 1000}s before retry ${attempt + 1}/3`)
     await sleep(retryAfter)
     return fetchPage(url, attempt + 1)
   }
@@ -55,10 +57,9 @@ async function searchIssues(query: string): Promise<GitHubIssue[]> {
 }
 
 export async function fetchGithubIssues(username: string): Promise<GitHubIssue[]> {
-  const [assigned, authored] = await Promise.all([
-    searchIssues(`org:${GITHUB_ORG_NAME} assignee:${username} is:issue`),
-    searchIssues(`org:${GITHUB_ORG_NAME} author:${username} is:issue`),
-  ])
+  // Run sequentially to avoid hitting GitHub's secondary rate limit (burst of concurrent search requests).
+  const assigned = await searchIssues(`org:${GITHUB_ORG_NAME} assignee:${username} is:issue`)
+  const authored = await searchIssues(`org:${GITHUB_ORG_NAME} author:${username} is:issue`)
 
   // Deduplicate by html_url
   const seen = new Set<string>()

@@ -160,7 +160,9 @@ export async function runSync(onProgress?: (event: SyncProgressEvent) => void) {
 
     onProgress?.({ type: "start", total: members.length });
 
-    const CONCURRENCY = 5;
+    // Reduced from 5 to 2: with sequential assigned+authored searches per member,
+    // 2 workers = 4 max concurrent search requests, safely under GitHub's burst limit.
+    const CONCURRENCY = 2;
     let nextIndex = 0;
 
     async function processMember(member: (typeof members)[number]) {
