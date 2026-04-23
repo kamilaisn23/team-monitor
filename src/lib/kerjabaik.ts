@@ -44,3 +44,36 @@ export async function listEmployees(): Promise<KerjabaikEmployee[]> {
 
     return results
 }
+
+export interface KerjabaikAssignment {
+    employee_id: string
+}
+
+export interface KerjabaikProject {
+    project_id: string
+    client_name: string
+    project_name: string
+    is_active: boolean
+    assignments: KerjabaikAssignment[]
+}
+
+function getEnv() {
+    const baseUrl = process.env.KERJABAIK_BASE_URL
+    const token = process.env.KERJABAIK_SERVICE_TOKEN
+    if (!baseUrl) throw new Error("KERJABAIK_BASE_URL is not set")
+    if (!token) throw new Error("KERJABAIK_SERVICE_TOKEN is not set")
+    return { baseUrl, token }
+}
+
+/** Fetch all projects with active assignments from kerjabaik. */
+export async function listProjects(): Promise<KerjabaikProject[]> {
+    const { baseUrl, token } = getEnv()
+    const res = await fetch(`${baseUrl}/api/v1/projects/external`, {
+        headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) {
+        throw new Error(`kerjabaik API error: ${res.status} ${res.statusText}`)
+    }
+    const data = await res.json() as KerjabaikProject[] | { data: KerjabaikProject[] }
+    return Array.isArray(data) ? data : data.data
+}
