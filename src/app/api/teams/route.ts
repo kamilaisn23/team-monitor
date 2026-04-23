@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { isKerjabaikSyncEnabled } from '@/lib/kerjabaik-flag'
 
 export async function GET() {
   const session = await auth()
@@ -15,6 +16,8 @@ export async function GET() {
     teams.map((t) => ({
       id: t.id,
       name: t.name,
+      kerjabaikProjectId: t.kerjabaikProjectId,
+      isArchived: t.isArchived,
       createdAt: t.createdAt,
       memberCount: t._count.members,
     }))
@@ -25,6 +28,10 @@ export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (!session.user.isSuperadmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  if (isKerjabaikSyncEnabled()) {
+    return NextResponse.json({ error: 'managed_in_kerjabaik' }, { status: 409 })
+  }
 
   const body = await req.json() as { name?: string }
   if (!body.name?.trim()) return NextResponse.json({ error: 'name is required' }, { status: 400 })

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { isKerjabaikSyncEnabled } from '@/lib/kerjabaik-flag'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -31,6 +32,7 @@ export async function GET(req: NextRequest) {
     members.map((m) => ({
       id: m.id,
       name: m.name,
+      kerjabaikEmployeeId: m.kerjabaikEmployeeId,
       usernameGithub: m.usernameGithub,
       usernameGitlab: m.usernameGitlab,
       role: m.role,
@@ -46,6 +48,10 @@ export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (!session.user.isSuperadmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  if (isKerjabaikSyncEnabled()) {
+    return NextResponse.json({ error: 'managed_in_kerjabaik' }, { status: 409 })
+  }
 
   const body = await req.json() as { name?: string; usernameGithub?: string; usernameGitlab?: string; role?: string }
 

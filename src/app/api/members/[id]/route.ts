@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { isKerjabaikSyncEnabled } from '@/lib/kerjabaik-flag'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -36,6 +37,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (!session.user.isSuperadmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  if (isKerjabaikSyncEnabled()) {
+    return NextResponse.json({ error: 'managed_in_kerjabaik' }, { status: 409 })
+  }
 
   const { id } = await params
   const body = await req.json() as { name?: string; usernameGithub?: string; usernameGitlab?: string; role?: string; isActive?: boolean }
@@ -79,6 +84,10 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (!session.user.isSuperadmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  if (isKerjabaikSyncEnabled()) {
+    return NextResponse.json({ error: 'managed_in_kerjabaik' }, { status: 409 })
+  }
 
   const { id } = await params
   const existing = await prisma.teamMember.findUnique({ where: { id } })

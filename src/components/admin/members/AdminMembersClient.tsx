@@ -11,6 +11,7 @@ const PAGE_SIZE = 10;
 interface Member {
     id: string;
     name: string;
+    kerjabaikEmployeeId: string | null;
     usernameGithub: string | null;
     usernameGitlab: string | null;
     role: string;
@@ -20,7 +21,12 @@ interface Member {
     teams: { id: string; name: string }[];
 }
 
-export default function AdminMembersClient() {
+interface Props {
+    kerjabaikEnabled?: boolean;
+    kerjabaikBaseUrl?: string;
+}
+
+export default function AdminMembersClient({ kerjabaikEnabled = false, kerjabaikBaseUrl = "" }: Props) {
     const [members, setMembers] = useState<Member[]>([]);
     const [loading, setLoading] = useState(true);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -99,15 +105,19 @@ export default function AdminMembersClient() {
                         Members
                     </h2>
                     <p className="text-sm text-body dark:text-dark-6">
-                        Manage team members and username mappings
+                        {kerjabaikEnabled
+                            ? "Read-only — managed in kerjabaik"
+                            : "Manage team members and username mappings"}
                     </p>
                 </div>
-                <Link
-                    href="/admin/members/new"
-                    className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90"
-                >
-                    Add Member
-                </Link>
+                {!kerjabaikEnabled && (
+                    <Link
+                        href="/admin/members/new"
+                        className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90"
+                    >
+                        Add Member
+                    </Link>
+                )}
             </div>
 
             {/* Filters */}
@@ -239,35 +249,50 @@ export default function AdminMembersClient() {
                                     </td>
                                     <td className="px-4 py-3">
                                         <div className="flex gap-2">
-                                            <Link
-                                                href={`/admin/members/${member.id}/edit`}
-                                                className="rounded px-2 py-1 text-xs text-primary hover:bg-primary/10"
-                                            >
-                                                Edit
-                                            </Link>
-                                            <button
-                                                onClick={() => handleToggleActive(member)}
-                                                disabled={togglingId === member.id}
-                                                className={`rounded px-2 py-1 text-xs disabled:opacity-50 ${
-                                                    member.isActive
-                                                        ? "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
-                                                        : "text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/20"
-                                                }`}
-                                            >
-                                                {togglingId === member.id
-                                                    ? "..."
-                                                    : member.isActive
-                                                    ? "Deactivate"
-                                                    : "Activate"}
-                                            </button>
-                                            <button
-                                                onClick={() =>
-                                                    setDeleteConfirm(member.id)
-                                                }
-                                                className="rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-                                            >
-                                                Delete
-                                            </button>
+                                            {kerjabaikEnabled ? (
+                                                member.kerjabaikEmployeeId && (
+                                                    <a
+                                                        href={`${kerjabaikBaseUrl}/employees/${member.kerjabaikEmployeeId}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="rounded px-2 py-1 text-xs text-primary hover:bg-primary/10"
+                                                    >
+                                                        View in kerjabaik ↗
+                                                    </a>
+                                                )
+                                            ) : (
+                                                <>
+                                                    <Link
+                                                        href={`/admin/members/${member.id}/edit`}
+                                                        className="rounded px-2 py-1 text-xs text-primary hover:bg-primary/10"
+                                                    >
+                                                        Edit
+                                                    </Link>
+                                                    <button
+                                                        onClick={() => handleToggleActive(member)}
+                                                        disabled={togglingId === member.id}
+                                                        className={`rounded px-2 py-1 text-xs disabled:opacity-50 ${
+                                                            member.isActive
+                                                                ? "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+                                                                : "text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/20"
+                                                        }`}
+                                                    >
+                                                        {togglingId === member.id
+                                                            ? "..."
+                                                            : member.isActive
+                                                            ? "Deactivate"
+                                                            : "Activate"}
+                                                    </button>
+                                                    <button
+                                                        onClick={() =>
+                                                            setDeleteConfirm(member.id)
+                                                        }
+                                                        className="rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>

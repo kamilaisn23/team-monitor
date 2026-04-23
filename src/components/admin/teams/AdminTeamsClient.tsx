@@ -8,6 +8,7 @@ const TEAMS_PAGE_SIZE = 10;
 interface Team {
     id: string;
     name: string;
+    kerjabaikProjectId: string | null;
     memberCount: number;
 }
 
@@ -18,7 +19,12 @@ interface Member {
     teams: { id: string; name: string }[];
 }
 
-export default function AdminTeamsClient() {
+interface Props {
+    kerjabaikEnabled?: boolean;
+    kerjabaikBaseUrl?: string;
+}
+
+export default function AdminTeamsClient({ kerjabaikEnabled = false, kerjabaikBaseUrl = "" }: Props) {
     const [teams, setTeams] = useState<Team[]>([]);
     const [members, setMembers] = useState<Member[]>([]);
     const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
@@ -134,9 +140,16 @@ export default function AdminTeamsClient() {
 
     return (
         <div>
-            <h2 className="mb-6 text-2xl font-bold text-dark dark:text-white">
-                Teams
-            </h2>
+            <div className="mb-6 flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-dark dark:text-white">
+                    Teams
+                </h2>
+                {kerjabaikEnabled && (
+                    <span className="rounded-full bg-yellow-100 px-3 py-1 text-sm text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
+                        Read-only — managed in kerjabaik
+                    </span>
+                )}
+            </div>
 
             {error && (
                 <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-300">
@@ -153,27 +166,29 @@ export default function AdminTeamsClient() {
                         </h3>
                     </div>
 
-                    {/* Create team */}
-                    <div className="border-b border-stroke p-4 dark:border-stroke-dark">
-                        <div className="flex gap-2">
-                            <input
-                                type="text"
-                                value={newTeamName}
-                                onChange={(e) => setNewTeamName(e.target.value)}
-                                onKeyDown={(e) =>
-                                    e.key === "Enter" && handleCreateTeam()
-                                }
-                                placeholder="New team name"
-                                className="flex-1 rounded-lg border border-stroke bg-white px-3 py-2 text-sm dark:border-stroke-dark dark:bg-gray-dark dark:text-white"
-                            />
-                            <button
-                                onClick={handleCreateTeam}
-                                className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary/90"
-                            >
-                                Add
-                            </button>
+                    {/* Create team — hidden when kerjabaik manages teams */}
+                    {!kerjabaikEnabled && (
+                        <div className="border-b border-stroke p-4 dark:border-stroke-dark">
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={newTeamName}
+                                    onChange={(e) => setNewTeamName(e.target.value)}
+                                    onKeyDown={(e) =>
+                                        e.key === "Enter" && handleCreateTeam()
+                                    }
+                                    placeholder="New team name"
+                                    className="flex-1 rounded-lg border border-stroke bg-white px-3 py-2 text-sm dark:border-stroke-dark dark:bg-gray-dark dark:text-white"
+                                />
+                                <button
+                                    onClick={handleCreateTeam}
+                                    className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary/90"
+                                >
+                                    Add
+                                </button>
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     <div>
                         {loading ? (
@@ -226,23 +241,38 @@ export default function AdminTeamsClient() {
                                         className="flex gap-1"
                                         onClick={(e) => e.stopPropagation()}
                                     >
-                                        <button
-                                            onClick={() => {
-                                                setEditingId(team.id);
-                                                setEditName(team.name);
-                                            }}
-                                            className="rounded px-2 py-1 text-xs text-primary hover:bg-primary/10"
-                                        >
-                                            Rename
-                                        </button>
-                                        <button
-                                            onClick={() =>
-                                                setDeleteConfirm(team.id)
-                                            }
-                                            className="rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50 dark:text-red-400"
-                                        >
-                                            Delete
-                                        </button>
+                                        {kerjabaikEnabled ? (
+                                            team.kerjabaikProjectId && (
+                                                <a
+                                                    href={`${kerjabaikBaseUrl}/projects/${team.kerjabaikProjectId}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="rounded px-2 py-1 text-xs text-primary hover:bg-primary/10"
+                                                >
+                                                    View in kerjabaik ↗
+                                                </a>
+                                            )
+                                        ) : (
+                                            <>
+                                                <button
+                                                    onClick={() => {
+                                                        setEditingId(team.id);
+                                                        setEditName(team.name);
+                                                    }}
+                                                    className="rounded px-2 py-1 text-xs text-primary hover:bg-primary/10"
+                                                >
+                                                    Rename
+                                                </button>
+                                                <button
+                                                    onClick={() =>
+                                                        setDeleteConfirm(team.id)
+                                                    }
+                                                    className="rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50 dark:text-red-400"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             ))
@@ -269,8 +299,8 @@ export default function AdminTeamsClient() {
 
                     {selectedTeam ? (
                         <div>
-                            {/* Add member dropdown */}
-                            {availableMembers.length > 0 && (
+                            {/* Add member dropdown — hidden when kerjabaik manages memberships */}
+                            {!kerjabaikEnabled && availableMembers.length > 0 && (
                                 <div className="border-b border-stroke p-4 dark:border-stroke-dark">
                                     <select
                                         onChange={(e) => {
@@ -306,14 +336,16 @@ export default function AdminTeamsClient() {
                                         <span className="text-sm font-medium text-dark dark:text-white">
                                             {member.name}
                                         </span>
-                                        <button
-                                            onClick={() =>
-                                                handleRemoveMember(member.id)
-                                            }
-                                            className="rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50 dark:text-red-400"
-                                        >
-                                            Remove
-                                        </button>
+                                        {!kerjabaikEnabled && (
+                                            <button
+                                                onClick={() =>
+                                                    handleRemoveMember(member.id)
+                                                }
+                                                className="rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50 dark:text-red-400"
+                                            >
+                                                Remove
+                                            </button>
+                                        )}
                                     </div>
                                 ))
                             )}
@@ -326,7 +358,7 @@ export default function AdminTeamsClient() {
                 </div>
             </div>
 
-            {/* Delete confirm */}
+            {/* Delete confirm — only shown when not in kerjabaik mode */}
             {deleteConfirm && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
                     <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl dark:bg-gray-dark">
