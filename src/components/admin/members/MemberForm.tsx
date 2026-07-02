@@ -169,6 +169,7 @@ export default function MemberForm({ memberId }: MemberFormProps) {
             onChange={(e) => setRole(e.target.value)}
             className="w-full rounded-lg border border-stroke bg-white px-3 py-2 text-sm text-dark outline-none focus:border-primary dark:border-stroke-dark dark:bg-gray-dark dark:text-white"
           >
+            <option value="ADMIN">Admin</option>
             <option value="MANAGER">Manager</option>
             <option value="DEVELOPER">Developer</option>
             <option value="UNASSIGNED">Unassigned</option>

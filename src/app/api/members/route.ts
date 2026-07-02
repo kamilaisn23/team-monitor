@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { isKerjabaikSyncEnabled } from '@/lib/kerjabaik-flag'
+import { isAdminRole } from '@/lib/session'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const role = session.user.role
-  if (!session.user.isSuperadmin && role !== 'MANAGER' && role !== 'DEVELOPER') {
+  if (!isAdminRole(session) && role !== 'MANAGER' && role !== 'DEVELOPER') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -18,7 +19,7 @@ export async function GET(req: NextRequest) {
 
   const members = await prisma.teamMember.findMany({
     where: {
-      ...(roleFilter ? { role: roleFilter.toUpperCase() as 'MANAGER' | 'DEVELOPER' | 'UNASSIGNED' } : {}),
+      ...(roleFilter ? { role: roleFilter.toUpperCase() as 'ADMIN' | 'MANAGER' | 'DEVELOPER' | 'UNASSIGNED' } : {}),
       ...(teamId ? { teams: { some: { teamId } } } : {}),
       ...(activeParam !== null ? { isActive: activeParam === 'true' } : {}),
     },
@@ -47,7 +48,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!session.user.isSuperadmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!isAdminRole(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   if (isKerjabaikSyncEnabled()) {
     return NextResponse.json({ error: 'managed_in_kerjabaik' }, { status: 409 })
@@ -58,9 +59,9 @@ export async function POST(req: NextRequest) {
   if (!body.name?.trim()) {
     return NextResponse.json({ error: 'name is required' }, { status: 400 })
   }
-  const validRoles = ['MANAGER', 'DEVELOPER', 'UNASSIGNED']
+  const validRoles = ['ADMIN', 'MANAGER', 'DEVELOPER', 'UNASSIGNED']
   if (!body.role || !validRoles.includes(body.role)) {
-    return NextResponse.json({ error: 'role must be MANAGER, DEVELOPER, or UNASSIGNED' }, { status: 400 })
+    return NextResponse.json({ error: 'role must be ADMIN, MANAGER, DEVELOPER, or UNASSIGNED' }, { status: 400 })
   }
 
   try {
@@ -69,7 +70,7 @@ export async function POST(req: NextRequest) {
         name: body.name.trim(),
         usernameGithub: body.usernameGithub?.trim() || null,
         usernameGitlab: body.usernameGitlab?.trim() || null,
-        role: body.role as 'MANAGER' | 'DEVELOPER' | 'UNASSIGNED',
+        role: body.role as 'ADMIN' | 'MANAGER' | 'DEVELOPER' | 'UNASSIGNED',
       },
     })
     return NextResponse.json(member, { status: 201 })

@@ -1,4 +1,4 @@
-export type AppRole = "SUPERADMIN" | "MANAGER" | "DEVELOPER" | "UNASSIGNED";
+export type AppRole = "SUPERADMIN" | "ADMIN" | "MANAGER" | "DEVELOPER" | "UNASSIGNED";
 
 export type WorkloadLevel = "low" | "medium" | "high";
 

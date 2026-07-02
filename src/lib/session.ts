@@ -8,23 +8,35 @@ export async function getSession() {
   return session
 }
 
+// True env-based superadmin only — use for gates that must exclude the ADMIN role (e.g. Settings).
 export async function requireSuperadmin() {
   const session = await getSession()
   if (!session.user.isSuperadmin) redirect('/dashboard')
   return session
 }
 
+// isSuperadmin (env-based) OR the ADMIN role — ADMIN has the same access as superadmin except Settings.
+export function isAdminRole(session: { user: { isSuperadmin: boolean; role: AppRole } }) {
+  return session.user.isSuperadmin || session.user.role === 'ADMIN'
+}
+
+export async function requireAdmin() {
+  const session = await getSession()
+  if (!isAdminRole(session)) redirect('/dashboard')
+  return session
+}
+
 export async function requireManager() {
   const session = await getSession()
   const role = session.user.role as AppRole
-  if (!session.user.isSuperadmin && role !== 'MANAGER') redirect('/dashboard')
+  if (!isAdminRole(session) && role !== 'MANAGER') redirect('/dashboard')
   return session
 }
 
 export async function requireManagerOrAbove() {
   const session = await getSession()
   const role = session.user.role as AppRole
-  const allowed = session.user.isSuperadmin || role === 'MANAGER' || role === 'DEVELOPER'
+  const allowed = isAdminRole(session) || role === 'MANAGER' || role === 'DEVELOPER'
   if (!allowed) redirect('/dashboard')
   return session
 }
@@ -32,7 +44,7 @@ export async function requireManagerOrAbove() {
 export async function requireRole(...roles: AppRole[]) {
   const session = await getSession()
   const role = session.user.role as AppRole
-  const allowed = session.user.isSuperadmin || roles.includes(role)
+  const allowed = isAdminRole(session) || roles.includes(role)
   if (!allowed) redirect('/dashboard')
   return session
 }

@@ -1,10 +1,10 @@
-import { requireSuperadmin } from '@/lib/session'
+import { requireAdmin } from '@/lib/session'
 import { redirect } from 'next/navigation'
 import MemberForm from '@/components/admin/members/MemberForm'
 import { isKerjabaikSyncEnabled } from '@/lib/kerjabaik-flag'
 
 export default async function NewMemberPage() {
-  await requireSuperadmin()
+  await requireAdmin()
   if (isKerjabaikSyncEnabled()) redirect('/admin/members')
   return (
     <div>

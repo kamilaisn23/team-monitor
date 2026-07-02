@@ -20,6 +20,7 @@ export function Sidebar() {
 
     const role = session?.user?.role;
     const isSuperadmin = session?.user?.isSuperadmin;
+    const isAdmin = isSuperadmin || role === "ADMIN";
     const isDeveloper = false; // developers now have same nav access as managers
 
     // Filter nav data based on role
@@ -37,15 +38,15 @@ export function Sidebar() {
         : NAV_DATA.map((section) => ({
               ...section,
               items: section.items.filter((item) => {
-                  // Only superadmin sees Repositories page
-                  if (item.url === "/admin/repositories") return isSuperadmin;
-                  // Only superadmin sees Teams, Members, and Settings admin pages
+                  // Admin (and superadmin) see Repositories, Teams, and Members admin pages
                   if (
+                      item.url === "/admin/repositories" ||
                       item.url === "/admin/teams" ||
-                      item.url === "/admin/members" ||
-                      item.url === "/admin/settings"
+                      item.url === "/admin/members"
                   )
-                      return isSuperadmin;
+                      return isAdmin;
+                  // Only superadmin sees Settings
+                  if (item.url === "/admin/settings") return isSuperadmin;
                   return true;
               }),
           })).filter((section) => section.items.length > 0);

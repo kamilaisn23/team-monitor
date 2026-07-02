@@ -42,6 +42,13 @@ export default auth((req) => {
     }
   }
 
+  // Admin role has the same access as superadmin, except Settings
+  if (role === 'ADMIN' && !isSuperadmin) {
+    if (pathname.startsWith('/admin/settings')) {
+      return NextResponse.redirect(new URL('/dashboard', req.url))
+    }
+  }
+
   return NextResponse.next()
 })
 

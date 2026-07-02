@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { isKerjabaikSyncEnabled } from '@/lib/kerjabaik-flag'
+import { isAdminRole } from '@/lib/session'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -9,7 +10,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params
   const role = session.user.role
   // Developer can only access own profile
-  if (!session.user.isSuperadmin && role !== 'MANAGER' && session.user.id !== id) {
+  if (!isAdminRole(session) && role !== 'MANAGER' && session.user.id !== id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!session.user.isSuperadmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!isAdminRole(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   if (isKerjabaikSyncEnabled()) {
     return NextResponse.json({ error: 'managed_in_kerjabaik' }, { status: 409 })
@@ -48,7 +49,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const existing = await prisma.teamMember.findUnique({ where: { id } })
   if (!existing) return NextResponse.json({ error: 'Member not found' }, { status: 404 })
 
-  const validRoles = ['MANAGER', 'DEVELOPER', 'UNASSIGNED']
+  const validRoles = ['ADMIN', 'MANAGER', 'DEVELOPER', 'UNASSIGNED']
   if (body.role && !validRoles.includes(body.role)) {
     return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
   }
@@ -60,7 +61,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(body.name !== undefined ? { name: body.name.trim() } : {}),
         ...(body.usernameGithub !== undefined ? { usernameGithub: body.usernameGithub?.trim() || null } : {}),
         ...(body.usernameGitlab !== undefined ? { usernameGitlab: body.usernameGitlab?.trim() || null } : {}),
-        ...(body.role !== undefined ? { role: body.role as 'MANAGER' | 'DEVELOPER' | 'UNASSIGNED' } : {}),
+        ...(body.role !== undefined ? { role: body.role as 'ADMIN' | 'MANAGER' | 'DEVELOPER' | 'UNASSIGNED' } : {}),
         ...(body.isActive !== undefined ? { isActive: Boolean(body.isActive) } : {}),
       },
       include: { teams: { include: { team: { select: { id: true, name: true } } } } },
@@ -83,7 +84,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!session.user.isSuperadmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!isAdminRole(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   if (isKerjabaikSyncEnabled()) {
     return NextResponse.json({ error: 'managed_in_kerjabaik' }, { status: 409 })

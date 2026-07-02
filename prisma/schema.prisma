@@ -16,6 +16,7 @@ model Setting {
 }
 
 enum Role {
+  ADMIN
   MANAGER
   DEVELOPER
   UNASSIGNED

@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { isAdminRole } from '@/lib/session'
 
 export async function GET() {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!session.user.isSuperadmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!isAdminRole(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const members = await prisma.teamMember.findMany({
     include: { teams: { include: { team: { select: { id: true, name: true } } } } },

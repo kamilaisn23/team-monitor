@@ -1,7 +1,7 @@
-import { requireSuperadmin } from '@/lib/session'
+import { requireAdmin } from '@/lib/session'
 import AdminReposClient from '@/components/admin/repositories/AdminReposClient'
 
 export default async function AdminRepositoriesPage() {
-  await requireSuperadmin()
+  await requireAdmin()
   return <AdminReposClient />
 }

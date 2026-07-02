@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getWorkloadLevel, getWorkloadThresholds } from "@/lib/settings";
+import { isAdminRole } from "@/lib/session";
 
 type SortCol = "name" | "role" | "currentLoad" | "workloadLevel";
 type SortDir = "asc" | "desc";
@@ -12,7 +13,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const role = session.user.role;
     if (
-        !session.user.isSuperadmin &&
+        !isAdminRole(session) &&
         role !== "MANAGER" &&
         role !== "DEVELOPER"
     ) {
