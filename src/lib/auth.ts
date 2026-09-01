@@ -12,7 +12,11 @@ if (process.env.AUTH_SECRET === "generate-a-random-secret-here") {
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
     trustHost: true,
-    providers: [GitHub],
+    providers: [
+        GitHub({
+            issuer: "https://github.com/login/oauth",
+        }),
+    ],
     callbacks: {
         async signIn({ profile }) {
             const login = profile?.login as string | undefined;
