@@ -1,14 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import type { WorkloadLevel } from "@/types";
 import Pagination from "@/components/ui/pagination";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { useTeamScope } from "@/components/Layouts/team-scope";
-import { getPreviewDashboard, previewRepositories } from "./preview-data";
+import {
+  getPreviewDashboard,
+  getPreviewIssues,
+  previewRepositories,
+} from "./preview-data";
 import { PreviewMemberDialog } from "./PreviewMemberDialog";
+import { DetailsDialog } from "@/components/ui/details-dialog";
+import { PreviewIssueList } from "@/components/preview/PreviewIssueList";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export interface DashboardMember {
   memberId: string;
@@ -82,6 +90,13 @@ export default function DashboardClient({
   preview?: boolean;
 }) {
   const { teams, teamId, setTeamId, reloadTeams } = useTeamScope();
+  const router = useRouter();
+  const isMobile = useIsMobile();
+  const directory = useRef<HTMLElement>(null);
+  const memberSearch = useRef<HTMLInputElement>(null);
+  const [details, setDetails] = useState<"open" | "stale" | "capacity" | null>(
+    null,
+  );
   const [response, setResponse] = useState<DashboardResponse | null>(() =>
     preview
       ? getPreviewDashboard(
@@ -114,6 +129,9 @@ export default function DashboardClient({
   const [view, setView] = useState<"list" | "grid">("list");
   const [showFilters, setShowFilters] = useState(false);
   const [revision, setRevision] = useState(0);
+  useEffect(() => {
+    if (isMobile) setView("grid");
+  }, [isMobile]);
 
   useEffect(() => {
     const timer = setTimeout(() => setSearch(name.trim()), 250);
@@ -242,6 +260,35 @@ export default function DashboardClient({
     setSortCol(column);
     setSortDir(sortCol === column && sortDir === "desc" ? "asc" : "desc");
   };
+  const focusDirectory = (tier = "all", cards = false) => {
+    setWorkload(tier);
+    setPage(1);
+    setView(cards ? "grid" : "list");
+    directory.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    memberSearch.current?.focus({ preventScroll: true });
+  };
+  const inspectStat = (icon: IconName) => {
+    if (icon === "users") focusDirectory("all", true);
+    else if (icon === "activity") focusDirectory("high");
+    else if (icon === "clock") setDetails("stale");
+    else if (preview) setDetails("open");
+    else {
+      setSortCol("currentLoad");
+      setSortDir("desc");
+      focusDirectory();
+    }
+  };
+  const issueScope = new URLSearchParams();
+  if (teamId) issueScope.set("teamId", teamId);
+  if (repoId) issueScope.set("repositoryId", repoId);
+  if (platform !== "all") issueScope.set("platform", platform);
+  if (active !== "all") issueScope.set("active", String(active === "active"));
+  if (search) issueScope.set("name", search);
+  const detailIssues = preview
+    ? getPreviewIssues(issueScope).filter(
+        (i) => details !== "stale" || i.ageDays > (thresholds?.staleDays ?? 30),
+      )
+    : [];
   const percent = (level: WorkloadLevel) =>
     summary?.memberCount
       ? (summary.distribution[level] / summary.memberCount) * 100
@@ -378,7 +425,14 @@ export default function DashboardClient({
       )}
       <div className="tm-stat-grid" aria-busy={loading}>
         {stats.map((stat) => (
-          <div className={`tm-stat tm-stat-${stat.tone}`} key={stat.label}>
+          <button
+            type="button"
+            className={`tm-stat tm-stat-${stat.tone} tm-clickable-card`}
+            key={stat.label}
+            disabled={loading || !summary}
+            onClick={() => inspectStat(stat.icon)}
+            aria-label={`Lihat detail ${stat.label.toLowerCase()}`}
+          >
             <div className="flex items-center justify-between gap-2">
               <span className="tm-stat-label">{stat.label}</span>
               <span className={`tm-stat-icon tm-tone-${stat.tone}`}>
@@ -396,16 +450,26 @@ export default function DashboardClient({
             )}
             <p>{stat.detail}</p>
             <div className="tm-stat-accent" />
-          </div>
+            <span className="tm-card-cue" aria-hidden="true">
+              <Icon name="arrow" width={14} height={14} />
+            </span>
+          </button>
         ))}
       </div>
 
       <div className="tm-insight-grid">
         <section
-          className="tm-capacity"
+          className="tm-capacity tm-clickable-panel"
           aria-labelledby="capacity-title"
           aria-busy={loading}
         >
+          <button
+            type="button"
+            className="tm-card-hit-area"
+            aria-label="Lihat detail kapasitas tim"
+            onClick={() => setDetails("capacity")}
+            disabled={loading || !summary}
+          />
           <div className="tm-panel-heading">
             <div>
               <div className="tm-eyebrow">TEAM CAPACITY</div>
@@ -493,9 +557,19 @@ export default function DashboardClient({
         </section>
 
         <section
-          className="tm-panel tm-team-panel"
+          className="tm-panel tm-team-panel tm-clickable-panel"
           aria-labelledby="teams-title"
         >
+          <button
+            type="button"
+            className="tm-card-hit-area"
+            aria-label="Buka direktori tim"
+            onClick={() =>
+              preview
+                ? router.push("/preview?section=teams")
+                : (setShowFilters(true), focusDirectory())
+            }
+          />
           <div className="tm-panel-heading">
             <div>
               <h2 id="teams-title">Tim dalam cakupan</h2>
@@ -553,7 +627,8 @@ export default function DashboardClient({
       </div>
 
       <section
-        className="tm-panel tm-members-panel"
+        ref={directory}
+        className="tm-panel tm-members-panel tm-card-target"
         aria-labelledby="members-title"
       >
         <div className="tm-members-heading">
@@ -595,6 +670,7 @@ export default function DashboardClient({
             <span className="sr-only">Cari nama anggota</span>
             <input
               type="search"
+              ref={memberSearch}
               placeholder="Cari nama anggota..."
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -884,6 +960,85 @@ export default function DashboardClient({
           member={previewMember}
           onClose={() => setPreviewMember(null)}
         />
+      )}
+      {details && (
+        <DetailsDialog
+          title={
+            details === "capacity"
+              ? "Kapasitas tim"
+              : details === "stale"
+                ? "Detail isu mengendap"
+                : "Detail isu terbuka"
+          }
+          description={
+            details === "capacity"
+              ? `${scopeName} · ${summary?.memberCount ?? 0} anggota dalam cakupan`
+              : `${scopeName} · ${details === "stale" ? `Isu terbuka lebih dari ${thresholds?.staleDays ?? 30} hari` : "Isu terbuka dalam cakupan terpilih"}`
+          }
+          onClose={() => setDetails(null)}
+        >
+          {details === "capacity" ? (
+            <div className="tm-detail-list">
+              {levels.map((level) => (
+                <button
+                  type="button"
+                  className="tm-detail-row"
+                  key={level.id}
+                  onClick={() => {
+                    setDetails(null);
+                    focusDirectory(level.id);
+                  }}
+                >
+                  <span className={`tm-workload tm-workload-${level.id}`}>
+                    <span />
+                    {level.label}
+                  </span>
+                  <span className="tm-detail-row-copy">
+                    <strong>
+                      {summary?.distribution[level.id] ?? 0} anggota
+                    </strong>
+                    <small>
+                      Klik untuk menampilkan anggota pada kategori ini.
+                    </small>
+                  </span>
+                  <Icon name="arrow" />
+                </button>
+              ))}
+            </div>
+          ) : preview ? (
+            <PreviewIssueList
+              issues={detailIssues}
+              onMember={(member) => {
+                setDetails(null);
+                setPreviewMember(member);
+              }}
+            />
+          ) : (
+            <div>
+              <p className="tm-detail-intro">
+                {summary?.staleIssues ?? 0} isu melewati ambang usia dalam
+                cakupan ini. Buka profil anggota untuk memeriksa daftar isu dan
+                statusnya.
+              </p>
+              <div className="tm-detail-list">
+                {response?.data.map((member) => (
+                  <Link
+                    className="tm-detail-row"
+                    key={member.memberId}
+                    href={`/members/${member.memberId}`}
+                  >
+                    <MemberAvatar member={member} />
+                    <span className="tm-detail-row-copy">
+                      <strong>{member.name}</strong>
+                      <small>{member.currentLoad} isu terbuka</small>
+                    </span>
+                    <Icon name="arrow" />
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+        </DetailsDialog>
       )}
     </div>
   );

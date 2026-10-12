@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { formatWib } from "@/lib/wib";
@@ -65,6 +65,7 @@ type SortKey =
     | "closedAt"
     | "state";
 type SortDir = "asc" | "desc";
+type ActivityTab = "open" | "resolved" | "created" | "assigned" | "stale";
 
 // days value: 0 = all time, 30/90/180 = last N days
 const TIME_OPTIONS = [
@@ -86,7 +87,8 @@ export default function MemberProfileClient({
     const [heatmapRecords, setHeatmapRecords] = useState<HeatmapRecord[]>([]);
     const [heatmapDays, setHeatmapDays] = useState<number>(30);
     const [platform, setPlatform] = useState("all");
-    const [tab, setTab] = useState<"open" | "resolved" | "created">("open");
+    const [tab, setTab] = useState<ActivityTab>("open");
+    const issueSection = useRef<HTMLDivElement>(null);
     const [page, setPage] = useState(1);
     const [loading, setLoading] = useState(true);
     const [sortKey, setSortKey] = useState<SortKey>("createdAt");
@@ -160,11 +162,14 @@ export default function MemberProfileClient({
             page: String(page),
             limit: "20",
         });
-        if (tab === "open") params.set("state", "open");
+        if (tab === "open") { params.set("state", "open"); params.set("type", "assigned"); }
+        else if (tab === "stale") { params.set("state", "open"); params.set("type", "assigned"); params.set("stale", "true"); }
+        else if (tab === "assigned") params.set("type", "assigned");
         else if (tab === "resolved") {
             params.set("state", "closed");
             params.set("type", "assigned");
         } else if (tab === "created") params.set("type", "created");
+        if (heatmapDays > 0 && tab !== "open" && tab !== "stale") params.set("days", String(heatmapDays));
         fetch(`/api/members/${memberId}/issues?${params.toString()}`)
             .then((r) => r.json())
             .then((data) => {
@@ -173,7 +178,7 @@ export default function MemberProfileClient({
                 setIssueTotal(d.total);
                 setLoading(false);
             });
-    }, [memberId, platform, tab, page]);
+    }, [memberId, platform, tab, page, heatmapDays]);
 
     // Fetch repositories — reacts to platform and heatmapDays
     useEffect(() => {
@@ -295,13 +300,14 @@ export default function MemberProfileClient({
             {/* Stats */}
             <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-5">
                 {[
-                    { label: "Open Issues", value: stats?.currentLoad ?? "—" },
+                    { label: "Open Issues", value: stats?.currentLoad ?? "—", tab: "open" },
                     {
                         label:
                             heatmapDays > 0
                                 ? `Created (Last ${heatmapDays}d)`
                                 : "Created (All time)",
                         value: stats?.issuesCreated ?? "—",
+                        tab: "created",
                     },
                     {
                         label:
@@ -309,6 +315,7 @@ export default function MemberProfileClient({
                                 ? `Assigned (Last ${heatmapDays}d)`
                                 : "Assigned (All time)",
                         value: stats?.issuesAssigned ?? "—",
+                        tab: "assigned",
                     },
                     {
                         label:
@@ -316,16 +323,18 @@ export default function MemberProfileClient({
                                 ? `Resolved (Last ${heatmapDays}d)`
                                 : "Resolved (All time)",
                         value: stats?.issuesResolved ?? "—",
+                        tab: "resolved",
                     },
                     {
                         label: `Stale (${stats?.staleDays ?? "…"}d+)`,
                         value: stats?.staleIssues ?? "—",
                         highlight: stats !== null && stats.staleIssues > 0,
+                        tab: "stale",
                     },
                 ].map((stat) => (
-                    <div
+                    <button type="button" disabled={!stats} aria-label={`Lihat ${stat.label}`} onClick={() => { setTab(stat.tab as ActivityTab); setPage(1); issueSection.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
                         key={stat.label}
-                        className={`rounded-xl border p-4 ${
+                        className={`tm-clickable-card rounded-xl border p-4 ${
                             "highlight" in stat && stat.highlight
                                 ? "border-orange-300 bg-orange-50 dark:border-orange-700 dark:bg-orange-900/20"
                                 : "border-stroke bg-white dark:border-stroke-dark dark:bg-gray-dark"
@@ -339,7 +348,7 @@ export default function MemberProfileClient({
                         >
                             {stat.value}
                         </p>
-                    </div>
+                    </button>
                 ))}
             </div>
 
@@ -492,9 +501,9 @@ export default function MemberProfileClient({
             </div>
 
             {/* Issue list */}
-            <div className="rounded-xl border border-stroke bg-white dark:border-stroke-dark dark:bg-gray-dark">
-                <div className="flex border-b border-stroke dark:border-stroke-dark">
-                    {(["open", "resolved", "created"] as const).map((t) => (
+            <div ref={issueSection} className="tm-card-target rounded-xl border border-stroke bg-white dark:border-stroke-dark dark:bg-gray-dark">
+                <div className="flex flex-wrap border-b border-stroke dark:border-stroke-dark">
+                    {(["open", "resolved", "created", "assigned", "stale"] as const).map((t) => (
                         <button
                             key={t}
                             onClick={() => {

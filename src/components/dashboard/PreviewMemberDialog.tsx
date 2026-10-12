@@ -1,7 +1,8 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { DashboardMember } from "./DashboardClient";
 import { Icon } from "@/components/ui/icon";
+import { previewIssues } from "./preview-data";
 
 export function PreviewMemberDialog({
   member,
@@ -11,6 +12,10 @@ export function PreviewMemberDialog({
   onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const [showIssues, setShowIssues] = useState(false);
+  const memberIssues = previewIssues.filter(
+    (issue) => issue.memberId === member.memberId,
+  );
   useEffect(() => {
     dialog.current?.showModal();
   }, []);
@@ -18,6 +23,9 @@ export function PreviewMemberDialog({
     <dialog
       ref={dialog}
       onClose={onClose}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) dialog.current?.close();
+      }}
       aria-labelledby="preview-member-title"
       className="tm-preview-dialog"
     >
@@ -34,10 +42,36 @@ export function PreviewMemberDialog({
         {member.role === "MANAGER" ? "Manager" : "Developer"} ·{" "}
         {member.isActive ? "Aktif" : "Nonaktif"}
       </p>
-      <div className="tm-preview-member-stat">
-        <span>Isu terbuka dalam cakupan</span>
-        <strong>{member.currentLoad}</strong>
-      </div>
+      <button
+        type="button"
+        className="tm-preview-member-stat tm-clickable-card w-full text-left"
+        aria-label="Lihat daftar isu anggota"
+        aria-expanded={showIssues}
+        onClick={() => setShowIssues((value) => !value)}
+      >
+        <span>Seluruh isu contoh anggota</span>
+        <strong>{memberIssues.length}</strong>
+        <Icon name="chevron" />
+      </button>
+      {showIssues && (
+        <div className="tm-detail-list mt-3">
+          {memberIssues.length ? (
+            memberIssues.map((issue) => (
+              <div className="tm-detail-row" key={issue.id}>
+                <span className="tm-detail-row-copy">
+                  <strong>{issue.title}</strong>
+                  <small>{issue.repository.name}</small>
+                </span>
+                <span className="tm-detail-age">{issue.ageDays} hari</span>
+              </div>
+            ))
+          ) : (
+            <p className="tm-detail-intro">
+              Belum ada isu terbuka untuk anggota ini.
+            </p>
+          )}
+        </div>
+      )}
       <p className="mt-4">{member.teams.map((t) => t.name).join(" · ")}</p>
       <div className="tm-preview-note">
         Profil ini menggunakan data contoh untuk pratinjau desain.
