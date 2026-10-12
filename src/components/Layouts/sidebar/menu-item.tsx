@@ -4,13 +4,13 @@ import Link from "next/link";
 import { useSidebarContext } from "./sidebar-context";
 
 const menuItemBaseStyles = cva(
-  "rounded-lg px-3.5 font-medium text-dark-4 transition-all duration-200 dark:text-dark-6",
+  "tm-nav-item rounded-lg px-3 font-medium transition-all duration-200",
   {
     variants: {
       isActive: {
-        true: "bg-[rgba(87,80,241,0.07)] text-primary hover:bg-[rgba(87,80,241,0.07)] dark:bg-[#FFFFFF1A] dark:text-white",
+        true: "tm-nav-active",
         false:
-          "hover:bg-gray-100 hover:text-dark hover:dark:bg-[#FFFFFF1A] hover:dark:text-white",
+          "tm-nav-idle",
       },
     },
     defaultVariants: {
@@ -32,6 +32,7 @@ export function MenuItem(
     return (
       <Link
         href={props.href}
+        aria-current={props.isActive ? "page" : undefined}
         // Close sidebar on clicking link if it's mobile
         onClick={() => isMobile && toggleSidebar()}
         className={cn(

@@ -6,6 +6,8 @@ export default auth((req) => {
   const session = req.auth
 
   // Public routes
+  // Public design preview contains only fictional, browser-local data.
+  if (pathname === '/preview') return NextResponse.next()
   if (pathname.startsWith('/api/auth')) return NextResponse.next()
 
   // Not authenticated → redirect to login

@@ -12,16 +12,16 @@ type NavSection = { label: string; items: NavItem[] };
 
 export const NAV_DATA: NavSection[] = [
     {
-        label: "MAIN MENU",
+        label: "WORKSPACE",
         items: [
             {
-                title: "Dashboard",
+                title: "Dasbor tim",
                 url: "/dashboard",
                 icon: Icons.HomeIcon,
                 items: [],
             },
             {
-                title: "Reports",
+                title: "Laporan aktivitas",
                 url: "/reports",
                 icon: Icons.Table,
                 items: [],
@@ -29,28 +29,28 @@ export const NAV_DATA: NavSection[] = [
         ],
     },
     {
-        label: "ADMIN",
+        label: "MANAJEMEN",
         items: [
             {
-                title: "Members",
+                title: "Anggota",
                 url: "/admin/members",
                 icon: Icons.User,
                 items: [],
             },
             {
-                title: "Teams",
+                title: "Tim",
                 url: "/admin/teams",
                 icon: Icons.FourCircle,
                 items: [],
             },
             {
-                title: "Repositories",
+                title: "Repositori",
                 url: "/admin/repositories",
                 icon: Icons.PieChart,
                 items: [],
             },
             {
-                title: "Settings",
+                title: "Pengaturan",
                 url: "/admin/settings",
                 icon: Icons.Authentication,
                 items: [],
@@ -61,16 +61,16 @@ export const NAV_DATA: NavSection[] = [
 
 export const NAV_DATA_DEVELOPER: NavSection[] = [
     {
-        label: "MAIN MENU",
+        label: "WORKSPACE",
         items: [
             {
-                title: "Dashboard",
+                title: "Dasbor tim",
                 url: "/dashboard",
                 icon: Icons.HomeIcon,
                 items: [],
             },
             {
-                title: "Reports",
+                title: "Laporan aktivitas",
                 url: "/reports",
                 icon: Icons.Table,
                 items: [],
