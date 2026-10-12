@@ -7,16 +7,14 @@ RUN npm install -g pnpm
 FROM base AS deps
 COPY package.json package-lock.json* ./
 COPY prisma ./prisma
-RUN --mount=type=cache,id=npm-cache,target=/root/.npm \
-    npm install
+RUN npm ci
 
 # ── builder: Next.js build + worker bundle ────────────────────────────────────
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
-RUN --mount=type=cache,id=nextjs-cache,target=/app/.next/cache \
-    npm run build
+RUN npm run build
 RUN node scripts/build-worker.mjs
 
 # ── runner: production app image (Next.js standalone) ────────────────────────
