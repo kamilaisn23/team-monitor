@@ -9,6 +9,7 @@ out/
 
 # Production build
 build/
+scripts-dist/
 
 # Environment variables
 .env
