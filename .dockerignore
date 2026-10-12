@@ -4,6 +4,7 @@ node_modules/
 # Next.js build output (built during Docker build)
 .next/
 out/
+scripts-dist/
 
 # Environment variables (injected at runtime)
 .env
