@@ -18,13 +18,14 @@ A web application for engineering managers to monitor team activity across GitHu
 
 | Layer | Choice |
 |---|---|
-| Framework | Next.js 16 (App Router) |
+| Frontend | Vue 3 Composition API + Vue Router + Vite |
+| Backend | Next.js route handlers (API and SPA fallback) |
 | Language | TypeScript (strict mode) |
 | ORM | Prisma 5 |
 | Database | PostgreSQL 16 |
 | Auth | NextAuth.js v5 (GitHub OAuth) |
-| UI | NextAdmin template + Tailwind CSS |
-| Charts | ApexCharts |
+| UI | Vue single-file components, custom responsive CSS, Satoshi, Lucide |
+| Charts | Data-driven capacity ring and activity heatmap |
 | Background Sync | node-cron (separate Docker container) |
 | Deployment | Docker Compose |
 
@@ -32,7 +33,7 @@ A web application for engineering managers to monitor team activity across GitHu
 
 ## Prerequisites
 
-- Node.js 20+
+- Node.js 22.12+ (Docker uses Node.js 22)
 - PostgreSQL 16 (or Docker)
 - A GitHub OAuth App (for login SSO)
 - A GitHub org-level token (for issue sync)
@@ -121,6 +122,13 @@ npm run dev
 
 App will be available at [http://localhost:3000](http://localhost:3000).
 
+The Vue/Vite frontend runs on port 3000 and proxies `/api` to the Next.js backend on port 3001. Open `/preview` to explore all six pages with fictional data without configuring GitHub OAuth. All page logic, forms, filters, and navigation live in `frontend/src`; Next.js no longer renders the application UI.
+
+```bash
+npm run typecheck
+npm test
+```
+
 ### Run the sync job manually (development)
 
 ```bash
@@ -138,7 +146,7 @@ npm start
 
 ## Running with Docker Compose (recommended for production)
 
-This starts three services: `db` (PostgreSQL), `app` (Next.js), and `sync` (cron job).
+This starts three services: `db` (PostgreSQL), `app` (Vue frontend with the API backend), and `sync` (cron job).
 
 ```bash
 # Build and start all services
@@ -185,36 +193,30 @@ docker compose down -v
 
 ```
 team-monitor/
+├── frontend/
+│   ├── src/
+│   │   ├── App.vue           # Navy sidebar, header and responsive shell
+│   │   ├── components/       # Reusable Vue cards, dialogs and controls
+│   │   ├── pages/            # Dashboard, reports, CRUD, profile and login
+│   │   ├── router.ts         # Vue Router and client navigation guards
+│   │   ├── state.ts          # Shared workspace and auth state
+│   │   └── style.css         # Blue visual system and responsive layouts
+│   └── vite.config.ts
 ├── src/
 │   ├── app/
-│   │   ├── (auth)/login/          # GitHub SSO login page
-│   │   ├── pending/               # Unassigned role waiting screen
-│   │   ├── (app)/                 # Authenticated layout (sidebar + header)
-│   │   │   ├── dashboard/         # Team workload overview
-│   │   │   ├── members/[id]/      # Member profile page
-│   │   │   ├── reports/           # Monthly report + CSV export
-│   │   │   └── admin/             # Admin pages (superadmin only)
-│   │   │       ├── members/       # Member management + username mapping
-│   │   │       ├── teams/         # Team management
-│   │   │       └── repositories/  # Repo tagging + ignore config
-│   │   └── api/                   # API routes
-│   ├── components/                # UI components
-│   ├── lib/
-│   │   ├── auth.ts                # NextAuth.js config
-│   │   ├── prisma.ts              # Prisma client singleton
-│   │   ├── session.ts             # Session helpers + role guards
-│   │   ├── github.ts              # GitHub API client
-│   │   ├── gitlab.ts              # GitLab API client
-│   │   └── sync.ts                # Core sync logic
-│   └── types/                     # Shared TypeScript types
-├── scripts/
-│   └── sync-cron.ts               # node-cron entrypoint
-├── prisma/
-│   └── schema.prisma              # Database schema
-├── docker-compose.yml
+│   │   ├── api/              # Existing API and GitHub OAuth endpoints
+│   │   └── [...path]/        # Vue SPA fallback for production deep links
+│   ├── lib/                  # Auth, Prisma, synchronization, sample data
+│   ├── fonts/                # Locally bundled Satoshi font
+│   └── types/                # Shared backend/dashboard contracts
+├── public/vue/               # Ignored generated Vue build
+├── scripts/                  # Dev orchestration, sync workers, smoke tests
+├── prisma/schema.prisma
 ├── Dockerfile
-└── .env.example
+└── railway.json
 ```
+
+The frontend is entirely Vue. Next.js and its React runtime remain backend dependencies to preserve Auth.js, API contracts and worker behavior. Public `/preview` never reads private APIs or writes to the database. Real routes retain server-side session/role checks; client navigation guards supplement them.
 
 ---
 

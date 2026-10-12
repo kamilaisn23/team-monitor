@@ -10,6 +10,7 @@ out/
 # Production build
 build/
 scripts-dist/
+public/vue/
 
 # Environment variables
 .env
