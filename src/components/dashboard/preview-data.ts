@@ -46,12 +46,42 @@ export const previewMembers: DashboardMember[] = names.map((name, index) => ({
 export const previewIssues = previewMembers.flatMap((member, index) =>
   Array.from({ length: member.currentLoad }, (_, issueIndex) => ({
     id: `${member.memberId}-issue-${issueIndex}`,
+    title:
+      [
+        "Perbaiki validasi formulir",
+        "Rapikan alur autentikasi",
+        "Tingkatkan aksesibilitas halaman",
+        "Optimalkan pemuatan data",
+        "Lengkapi pengujian integrasi",
+      ][issueIndex % 5]! + ` #${index + 1}.${issueIndex + 1}`,
     memberId: member.memberId,
     repository:
       previewRepositories[(index + issueIndex) % previewRepositories.length]!,
     ageDays: issueIndex === 0 ? 45 : 3 + issueIndex,
   })),
 );
+
+export type PreviewIssue = (typeof previewIssues)[number];
+export function getPreviewIssues(params: URLSearchParams) {
+  const members = previewMembers.filter(
+    (m) =>
+      (!params.get("teamId") ||
+        m.teams.some((t) => t.id === params.get("teamId"))) &&
+      (!params.get("name") ||
+        m.name.toLowerCase().includes(params.get("name")!.toLowerCase())) &&
+      (!params.has("active") ||
+        m.isActive === (params.get("active") === "true")),
+  );
+  return previewIssues.filter(
+    (issue) =>
+      members.some((m) => m.memberId === issue.memberId) &&
+      (!params.get("repositoryId") ||
+        issue.repository.id === params.get("repositoryId")) &&
+      (!params.get("platform") ||
+        params.get("platform") === "all" ||
+        issue.repository.platform === params.get("platform")),
+  );
+}
 
 export function getPreviewDashboard(
   params: URLSearchParams,
@@ -116,7 +146,11 @@ export function getPreviewDashboard(
   const sortCol = params.get("sortCol") ?? "currentLoad";
   const sortDir = params.get("sortDir") === "asc" ? 1 : -1;
   const workload = params.get("workload");
-  const data = members.filter((m) => !["low", "medium", "high"].includes(workload ?? "") || m.workloadLevel === workload);
+  const data = members.filter(
+    (m) =>
+      !["low", "medium", "high"].includes(workload ?? "") ||
+      m.workloadLevel === workload,
+  );
   data.sort(
     (a, b) =>
       sortDir *

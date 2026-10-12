@@ -13,6 +13,9 @@ import {
 import { PreviewMemberDialog } from "@/components/dashboard/PreviewMemberDialog";
 import type { DashboardMember } from "@/components/dashboard/DashboardClient";
 import type { PreviewSection } from "./navigation";
+import { DetailsDialog } from "@/components/ui/details-dialog";
+import { PreviewIssueList } from "./PreviewIssueList";
+import type { PreviewIssue } from "@/components/dashboard/preview-data";
 
 const headings: Record<
   Exclude<PreviewSection, "dashboard">,
@@ -49,14 +52,24 @@ function Metric({
   value,
   icon,
   detail,
+  onClick,
+  pressed,
 }: {
   label: string;
   value: number;
   icon: IconName;
   detail: string;
+  onClick: () => void;
+  pressed?: boolean;
 }) {
   return (
-    <div className="tm-stat">
+    <button
+      type="button"
+      className="tm-stat tm-clickable-card"
+      onClick={onClick}
+      aria-pressed={pressed}
+      aria-label={`Lihat detail ${label.toLowerCase()}`}
+    >
       <div className="flex items-center justify-between">
         <span className="tm-stat-label">{label}</span>
         <span className="tm-stat-icon tm-tone-blue">
@@ -66,7 +79,10 @@ function Metric({
       <strong>{value}</strong>
       <p>{detail}</p>
       <div className="tm-stat-accent" />
-    </div>
+      <span className="tm-card-cue" aria-hidden="true">
+        <Icon name="arrow" width={14} height={14} />
+      </span>
+    </button>
   );
 }
 function initials(name: string) {
@@ -93,6 +109,11 @@ export function PreviewSections({
   const [lowMax, setLowMax] = useState(3);
   const [mediumMax, setMediumMax] = useState(7);
   const [staleDays, setStaleDays] = useState(30);
+  const [details, setDetails] = useState<{
+    title: string;
+    members?: DashboardMember[];
+    issues?: PreviewIssue[];
+  } | null>(null);
   const heading = headings[section];
   const members = previewMembers.filter(
     (m) =>
@@ -107,6 +128,19 @@ export function PreviewSections({
   const openTeam = (id: string) => {
     setTeamId(id);
     router.push("/preview");
+  };
+  const showMembers = (title: string, list: DashboardMember[]) =>
+    setDetails({ title, members: list });
+  const showIssues = (title: string, list: PreviewIssue[]) =>
+    setDetails({ title, issues: list });
+  const focusSection = (id: string) => {
+    const target =
+      document.getElementById(id) ??
+      document.getElementById(`${id}-title`)?.closest<HTMLElement>("section");
+    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    (target?.querySelector<HTMLInputElement>("input") ?? target)?.focus({
+      preventScroll: true,
+    });
   };
   const exportSnapshot = () => {
     const rows = [
@@ -194,18 +228,28 @@ export function PreviewSections({
               value={members.length}
               icon="users"
               detail="Snapshot anggota contoh"
+              onClick={() => showMembers("Anggota dalam laporan", members)}
             />
             <Metric
               label="Penugasan terbuka"
               value={members.reduce((n, m) => n + m.currentLoad, 0)}
               icon="issue"
               detail="Seluruh penugasan pada snapshot"
+              onClick={() =>
+                showIssues(
+                  "Penugasan terbuka dalam laporan",
+                  previewIssues.filter((i) =>
+                    members.some((m) => m.memberId === i.memberId),
+                  ),
+                )
+              }
             />
             <Metric
               label="Tim terhubung"
               value={previewTeams.length}
               icon="layers"
               detail="Termasuk anggota multi-tim"
+              onClick={() => router.push("/preview?section=teams")}
             />
           </div>
           <section className="tm-panel tm-members-panel">
@@ -319,7 +363,7 @@ export function PreviewSections({
             {members.map((m) => (
               <button
                 key={m.memberId}
-                className="tm-member-card text-left"
+                className="tm-member-card tm-clickable-card text-left"
                 onClick={() => setSelectedMember(m)}
               >
                 <div className="flex items-center justify-between">
@@ -360,30 +404,43 @@ export function PreviewSections({
               value={previewTeams.length}
               icon="layers"
               detail="Dalam workspace contoh"
+              onClick={() => focusSection("preview-team-directory")}
             />
             <Metric
               label="Anggota unik"
               value={previewMembers.length}
               icon="users"
               detail="Kolaborasi lintas tim"
+              onClick={() => showMembers("Seluruh anggota tim", previewMembers)}
             />
             <Metric
               label="Repositori"
               value={previewRepositories.length}
               icon="branch"
               detail="GitHub dan GitLab"
+              onClick={() => router.push("/preview?section=repositories")}
             />
           </div>
-          <div className="tm-preview-team-grid">
+          <div
+            id="preview-team-directory"
+            tabIndex={-1}
+            className="tm-preview-team-grid tm-card-target"
+          >
             {previewTeams.map((team, index) => {
               const teamMembers = previewMembers.filter((m) =>
                 m.teams.some((t) => t.id === team.id),
               );
               return (
                 <section
-                  className="tm-panel tm-preview-team-card"
+                  className="tm-panel tm-preview-team-card tm-clickable-panel"
                   key={team.id}
                 >
+                  <button
+                    type="button"
+                    className="tm-card-hit-area"
+                    aria-label={`Buka dasbor ${team.name}`}
+                    onClick={() => openTeam(team.id)}
+                  />
                   <div className="flex items-center justify-between">
                     <span className={`tm-team-symbol tm-team-symbol-${index}`}>
                       <Icon name="layers" />
@@ -439,6 +496,12 @@ export function PreviewSections({
               value={previewRepositories.length}
               icon="branch"
               detail="Sumber aktivitas contoh"
+              onClick={() => {
+                setPlatform("all");
+                setSearch("");
+                focusSection("preview-repo-directory");
+              }}
+              pressed={platform === "all"}
             />
             <Metric
               label="GitHub"
@@ -448,6 +511,12 @@ export function PreviewSections({
               }
               icon="layers"
               detail="Repositori terhubung"
+              onClick={() => {
+                setPlatform("github");
+                setSearch("");
+                focusSection("preview-repo-directory");
+              }}
+              pressed={platform === "github"}
             />
             <Metric
               label="GitLab"
@@ -457,12 +526,18 @@ export function PreviewSections({
               }
               icon="layers"
               detail="Repositori terhubung"
+              onClick={() => {
+                setPlatform("gitlab");
+                setSearch("");
+                focusSection("preview-repo-directory");
+              }}
+              pressed={platform === "gitlab"}
             />
           </div>
           <section className="tm-panel tm-members-panel">
             <div className="tm-members-heading">
               <div>
-                <h2>Direktori repositori</h2>
+                <h2 id="preview-repo-directory-title">Direktori repositori</h2>
                 <p>Repositori contoh dan tim yang mengerjakannya.</p>
               </div>
             </div>
@@ -565,7 +640,17 @@ export function PreviewSections({
 
       {section === "settings" && (
         <div className="tm-preview-settings-grid">
-          <section className="tm-panel tm-preview-settings">
+          <section
+            id="preview-thresholds"
+            tabIndex={-1}
+            className="tm-panel tm-preview-settings tm-clickable-panel tm-card-target"
+          >
+            <button
+              type="button"
+              className="tm-card-hit-area"
+              aria-label="Ubah ambang beban kerja"
+              onClick={() => focusSection("preview-thresholds")}
+            />
             <h2>Ambang beban kerja</h2>
             <p>Ubah nilai untuk melihat pembagian beban pada anggota contoh.</p>
             <div className="tm-preview-setting-fields">
@@ -623,7 +708,15 @@ export function PreviewSections({
               Perubahan hanya berlaku pada simulasi di halaman ini.
             </p>
           </section>
-          <section className="tm-panel tm-preview-settings">
+          <section className="tm-panel tm-preview-settings tm-clickable-panel">
+            <button
+              type="button"
+              className="tm-card-hit-area"
+              aria-label="Lihat anggota dalam simulasi"
+              onClick={() =>
+                showMembers("Anggota dalam simulasi", previewMembers)
+              }
+            />
             <div className="tm-eyebrow">LIVE SIMULATION</div>
             <h2 className="mt-3">Hasil simulasi</h2>
             <p>
@@ -632,7 +725,26 @@ export function PreviewSections({
             </p>
             <div className="tm-preview-band-list">
               {bands.map((band) => (
-                <div key={band.id}>
+                <button
+                  type="button"
+                  className="tm-clickable-card"
+                  disabled={!validThresholds}
+                  key={band.id}
+                  aria-label={`Lihat anggota dengan beban ${band.label.toLowerCase()}`}
+                  onClick={() =>
+                    showMembers(
+                      `Beban ${band.label.toLowerCase()} · ${band.range}`,
+                      previewMembers.filter((m) =>
+                        band.id === "low"
+                          ? m.currentLoad <= lowMax
+                          : band.id === "medium"
+                            ? m.currentLoad > lowMax &&
+                              m.currentLoad <= mediumMax
+                            : m.currentLoad > mediumMax,
+                      ),
+                    )
+                  }
+                >
                   <span className={`tm-workload tm-workload-${band.id}`}>
                     <span />
                     {band.label}
@@ -644,10 +756,21 @@ export function PreviewSections({
                     {validThresholds ? band.count : "—"}
                     <small>anggota</small>
                   </strong>
-                </div>
+                </button>
               ))}
             </div>
-            <div className="tm-preview-simulation-note">
+            <button
+              type="button"
+              className="tm-preview-simulation-note tm-clickable-card"
+              disabled={!validThresholds}
+              aria-label="Lihat isu mengendap dalam simulasi"
+              onClick={() =>
+                showIssues(
+                  `Isu mengendap · lebih dari ${staleDays} hari`,
+                  previewIssues.filter((i) => i.ageDays > staleDays),
+                )
+              }
+            >
               <Icon name="clock" />
               <span>
                 <strong>
@@ -660,7 +783,7 @@ export function PreviewSections({
                   Terbuka lebih dari {staleDays} hari pada data contoh.
                 </small>
               </span>
-            </div>
+            </button>
           </section>
         </div>
       )}
@@ -670,6 +793,57 @@ export function PreviewSections({
           member={selectedMember}
           onClose={() => setSelectedMember(null)}
         />
+      )}
+      {details && (
+        <DetailsDialog
+          title={details.title}
+          description="Data contoh untuk pratinjau desain"
+          onClose={() => setDetails(null)}
+        >
+          {details.issues ? (
+            <PreviewIssueList
+              issues={details.issues}
+              onMember={(member) => {
+                setDetails(null);
+                setSelectedMember(member);
+              }}
+            />
+          ) : (
+            <div className="tm-detail-list">
+              {details.members?.length ? (
+                details.members.map((member) => (
+                  <button
+                    type="button"
+                    className="tm-detail-row"
+                    key={member.memberId}
+                    onClick={() => {
+                      setDetails(null);
+                      setSelectedMember(member);
+                    }}
+                  >
+                    <span className="tm-avatar tm-avatar-initials">
+                      {initials(member.name)}
+                    </span>
+                    <span className="tm-detail-row-copy">
+                      <strong>{member.name}</strong>
+                      <small>
+                        {member.teams.map((t) => t.name).join(" · ")}
+                      </small>
+                    </span>
+                    <span className="tm-detail-age">
+                      {member.currentLoad} isu
+                    </span>
+                    <Icon name="arrow" />
+                  </button>
+                ))
+              ) : (
+                <div className="tm-compact-empty">
+                  Tidak ada anggota dalam kategori ini.
+                </div>
+              )}
+            </div>
+          )}
+        </DetailsDialog>
       )}
     </div>
   );

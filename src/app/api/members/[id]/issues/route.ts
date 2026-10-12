@@ -22,6 +22,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const platform = searchParams.get('platform') || 'all'
   const month = searchParams.get('month')
   const type = searchParams.get('type') || 'all'
+  const days = Math.max(0, Math.min(3650, parseInt(searchParams.get('days') || '0') || 0))
+  const staleOnly = searchParams.get('stale') === 'true'
   const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
   const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '20')))
 
@@ -32,7 +34,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const dateFilter = month
     ? { createdAt: (() => { const { start, end } = wibMonthRange(month); return { gte: start, lte: end } })() }
-    : {}
+    : days > 0 ? { [state === 'closed' ? 'closedAt' : 'createdAt']: { gte: wibDaysAgo(days) } } : {}
 
   const stateFilter = state !== 'all' ? { state: state.toUpperCase() as 'OPEN' | 'CLOSED' } : {}
 
@@ -65,6 +67,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     repository: repoFilter,
     ...dateFilter,
     ...stateFilter,
+    ...(staleOnly ? { AND: [{ state: 'OPEN' as const, createdAt: { lt: wibDaysAgo((await getWorkloadThresholds()).staleDays) } }] } : {}),
   }
 
   const [total, issues, thresholds] = await Promise.all([

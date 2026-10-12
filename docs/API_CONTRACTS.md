@@ -405,6 +405,8 @@ Deletes a team member.
 
 Returns paginated issues for a member.
 
+Statistic-card drilldowns can use `stale=true` to filter open issues older than the configured threshold before pagination. `days` selects a rolling WIB period when `month` is absent: closed issues use their resolution date; other issue views use creation date. Both filters preserve the existing member access guards.
+
 **Auth:** Authenticated. `DEVELOPER` can only access own issues.
 
 **Query Parameters:**
