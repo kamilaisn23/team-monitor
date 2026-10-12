@@ -1,11 +1,12 @@
 ﻿/* A single blue workspace: dark navigation, bright content, focused dark insights. */
 :root {
   color-scheme: light;
-  --tm-page: #f4f6fb;
+  --tm-page: #edf2fa;
   --tm-surface: #ffffff;
   --tm-ink: #17243d;
   --tm-muted: #7b879d;
-  --tm-line: #e8edf5;
+  --tm-line: #cfdaeb;
+  --tm-raised-shadow: 0 2px 4px #172b4d0a, 0 10px 24px #172b4d12;
   --tm-blue: #4f6ef7;
   --tm-navy: #111b30;
 }
@@ -365,7 +366,7 @@ button:disabled {
   border: 1px solid var(--tm-line);
   border-radius: 13px;
   padding: 19px 20px 21px;
-  box-shadow: 0 3px 9px #18315303;
+  box-shadow: var(--tm-raised-shadow);
 }
 .tm-stat-label {
   color: #718099;
@@ -415,8 +416,8 @@ button:disabled {
   bottom: 0;
   left: 20px;
   right: 20px;
-  height: 2px;
-  background: #dae4ff;
+  height: 3px;
+  background: #91a8ff;
 }
 .tm-stat-violet .tm-stat-accent {
   background: #e8e0fa;
@@ -437,7 +438,7 @@ button:disabled {
   background: white;
   border: 1px solid var(--tm-line);
   border-radius: 14px;
-  box-shadow: 0 3px 12px #18315303;
+  box-shadow: var(--tm-raised-shadow);
 }
 .tm-panel-heading {
   display: flex;
@@ -473,7 +474,7 @@ button:disabled {
   border-radius: 14px;
   overflow: hidden;
   position: relative;
-  box-shadow: 0 6px 17px #1831530c;
+  box-shadow: 0 4px 8px #172b4d12, 0 14px 28px #172b4d22;
 }
 .tm-capacity::before {
   content: "";
@@ -878,14 +879,14 @@ button:disabled {
   font-size: 11px;
 }
 .tm-member-table th {
-  background: #f9fafd;
+  background: #eaf0ff;
   border-top: 1px solid var(--tm-line);
   border-bottom: 1px solid var(--tm-line);
   color: #8592a8;
   text-align: left;
   padding: 12px 17px;
   font-size: 9px;
-  font-weight: 600;
+  font-weight: 800;
   white-space: nowrap;
 }
 .tm-member-table th:first-child,
@@ -902,7 +903,9 @@ button:disabled {
 }
 .tm-member-table td {
   padding: 16px 17px;
-  border-bottom: 1px solid #edf1f6;
+  border-bottom: 1px solid #dce5f2;
+  color: #263c5b;
+  font-weight: 600;
 }
 .tm-member-table tr:last-child td {
   border-bottom: 0;
@@ -910,8 +913,12 @@ button:disabled {
 .tm-member-table tbody tr {
   transition: background 0.15s;
 }
-.tm-member-table tbody tr:hover {
-  background: #f9faff;
+.tm-member-table tbody tr:nth-child(even) {
+  background: #f5f8fd;
+}
+.tm-member-table tbody tr:hover,
+.tm-member-table tbody tr:focus-within {
+  background: #eaf0ff;
 }
 .tm-member-link {
   display: flex;
@@ -965,7 +972,7 @@ button:disabled {
   display: inline-block;
   background: #f0f3fa;
   color: #7788a3;
-  border: 1px solid #e7ecf4;
+  border: 1px solid #cbd7e9;
   padding: 3px 7px;
   border-radius: 5px;
   font-size: 9px;
@@ -979,8 +986,8 @@ button:disabled {
 .tm-team-pills button {
   font-size: 9px;
   color: #8190ab;
-  background: #f8fafd;
-  border: 1px solid #e9edf5;
+  background: #edf2ff;
+  border: 1px solid #c8d6f6;
   border-radius: 4px;
   padding: 3px 6px;
 }
@@ -1132,7 +1139,8 @@ button:disabled {
 }
 .tm-member-card {
   background: white;
-  border: 1px solid #e5eaf4;
+  border: 1px solid var(--tm-line);
+  box-shadow: var(--tm-raised-shadow);
   border-radius: 11px;
   padding: 18px;
   transition:
@@ -1232,12 +1240,16 @@ button:disabled {
   border-radius: 8px;
 }
 .tm-main > div:not(.tm-dashboard) :where(table) {
-  font-size: 12px;
+  font-size: 14px;
+  color: #263c5b;
+  font-weight: 600;
 }
 .tm-main > div:not(.tm-dashboard) :where(table th) {
-  background: #f8fafe;
-  color: #7c8ca8;
-  font-size: 11px;
+  background: #eaf0ff;
+  color: #294878;
+  font-size: 13px;
+  font-weight: 800;
+  border-block: 1px solid #cfdaeb;
 }
 .tm-main > div:not(.tm-dashboard) :where(table td) {
   padding-top: 16px;
@@ -1247,7 +1259,8 @@ button:disabled {
   border-radius: 13px;
 }
 .tm-main > div:not(.tm-dashboard) .bg-white.border {
-  box-shadow: 0 3px 12px #18315303;
+  border-color: var(--tm-line);
+  box-shadow: var(--tm-raised-shadow);
 }
 /* The sign-in screen shares the mixed navy/white workspace. */
 .tm-login {
@@ -2031,7 +2044,7 @@ body {
 .tm-clickable-card:not(:disabled):hover {
   transform: translateY(-2px);
   border-color: #a4b5f4;
-  box-shadow: 0 8px 22px #20365e12;
+  box-shadow: 0 4px 8px #20365e0d, 0 14px 30px #20365e22;
 }
 .tm-clickable-card:focus-visible,
 .tm-clickable-card[aria-pressed="true"] {
@@ -2063,7 +2076,7 @@ body {
 .tm-clickable-panel:hover,
 .tm-clickable-panel:has(.tm-card-hit-area:focus-visible) {
   border-color: #91a8e8;
-  box-shadow: 0 8px 22px #20365e16;
+  box-shadow: 0 4px 8px #20365e0d, 0 14px 30px #20365e22;
 }
 .tm-card-hit-area {
   position: absolute;
@@ -2270,19 +2283,21 @@ body {
 }
 .tm-stat-label {
   font-size: 14px;
-  font-weight: 700;
-  color: #425472;
+  font-weight: 800;
+  color: #2d4263;
 }
 .tm-stat > strong {
   font-size: 36px;
   color: #17243d;
 }
 .tm-stat > p {
-  font-size: 12px;
-  color: #60718b;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4d607d;
 }
 .tm-panel h2 {
   font-size: 18px;
+  font-weight: 800;
 }
 .tm-capacity h2 {
   font-size: 22px;
@@ -2376,28 +2391,31 @@ body {
   font-size: 14px;
 }
 .tm-member-table th {
-  font-size: 12px;
-  color: #5e7393;
+  font-size: 13px;
+  color: #294878;
 }
 .tm-member-link strong {
   font-size: 14px;
-  color: #31496c;
+  font-weight: 800;
+  color: #20395d;
 }
 .tm-member-link small {
   font-size: 12px;
-  color: #60718b;
+  font-weight: 600;
+  color: #526784;
 }
 .tm-role,
 .tm-team-pills button,
 .tm-workload {
   font-size: 12px;
+  font-weight: 700;
 }
 .tm-team-pills button {
-  color: #516788;
+  color: #355487;
   min-height: 32px;
 }
 .tm-role {
-  color: #526889;
+  color: #3e5578;
 }
 .tm-workload-low {
   color: #315dab;
@@ -2410,13 +2428,15 @@ body {
 }
 .tm-member-card h3 {
   font-size: 16px;
-  color: #31496c;
+  font-weight: 800;
+  color: #20395d;
 }
 .tm-member-card > p,
 .tm-card-teams,
 .tm-member-card-footer {
   font-size: 13px;
-  color: #60718b;
+  font-weight: 600;
+  color: #4d607d;
 }
 .tm-table-footer,
 .tm-pagination > span {
@@ -2580,4 +2600,72 @@ body {
 .tm-preview-dialog {
   max-height: 88dvh;
   overflow-y: auto;
+}
+
+/* Clear depth and typography across dashboard, reports and management tables. */
+.tm-members-heading,
+.tm-table-footer {
+  background: #f8faff;
+}
+.tm-members-heading {
+  border-radius: 13px 13px 0 0;
+  border-bottom: 1px solid var(--tm-line);
+  margin-bottom: 18px;
+}
+.tm-table-footer {
+  border-radius: 0 0 13px 13px;
+  color: #4d607d;
+  font-weight: 600;
+}
+.tm-page-heading p,
+.tm-panel-heading p,
+.tm-members-heading p,
+.tm-preview-team-card > p,
+.tm-preview-settings > p {
+  font-weight: 600;
+}
+.tm-preview-team-card > p,
+.tm-preview-settings > p {
+  color: #4d607d;
+}
+.tm-button,
+.tm-search input,
+.tm-preview-select,
+.tm-filter-row select,
+.tm-preview-setting-fields label,
+.tm-level-tabs button,
+.tm-main .font-medium {
+  font-weight: 600;
+}
+.tm-search,
+.tm-filter-row select,
+.tm-preview-select {
+  border-color: #c9d6ea;
+  background: #f4f7fc;
+  color: #304b72;
+}
+.tm-search input {
+  color: #20395d;
+}
+.tm-avatar-initials {
+  color: #365cc5;
+  font-weight: 800;
+}
+.tm-load-value strong {
+  font-size: 15px;
+  font-weight: 800;
+  color: #20395d;
+}
+.tm-main > div:not(.tm-dashboard) :where(table td) {
+  border-bottom-color: #dce5f2;
+}
+.tm-main > div:not(.tm-dashboard) :where(table tbody tr:nth-child(even)) {
+  background: #f5f8fd;
+}
+.tm-main > div:not(.tm-dashboard) :where(table tbody tr:hover, table tbody tr:focus-within) {
+  background: #eaf0ff;
+}
+.tm-main :where(.text-body, .text-gray-500, .text-gray-600) {
+  color: #4d607d;
+  font-weight: 600;
 }
