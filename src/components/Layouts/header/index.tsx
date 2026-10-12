@@ -1,42 +1,70 @@
-"use client";
-
-import Link from "next/link";
-import Image from "next/image";
+﻿"use client";
+import { usePathname } from "next/navigation";
 import { useSidebarContext } from "../sidebar/sidebar-context";
 import { MenuIcon } from "./icons";
-import { ThemeToggleSwitch } from "./theme-toggle";
 import { UserInfo } from "./user-info";
+import { Icon } from "@/components/ui/icon";
+import type { PreviewSection } from "@/components/preview/navigation";
 
-export function Header() {
-  const { toggleSidebar, isMobile } = useSidebarContext();
-
+const pageNames: Record<string, string> = {
+  dashboard: "Dasbor tim",
+  preview: "Pratinjau dasbor",
+  reports: "Laporan aktivitas",
+  members: "Anggota tim",
+  teams: "Manajemen tim",
+  repositories: "Repositori",
+  settings: "Pengaturan",
+};
+export function Header({
+  preview = false,
+  previewSection = "dashboard",
+}: {
+  preview?: boolean;
+  previewSection?: PreviewSection;
+}) {
+  const { toggleSidebar } = useSidebarContext();
+  const pathname = usePathname();
+  const parts = pathname.split("/").filter(Boolean);
+  const section = preview
+    ? previewSection
+    : parts[0] === "admin"
+      ? parts[1]
+      : parts[0];
+  const title = pageNames[section ?? ""] ?? "Workspace";
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between border-b border-stroke bg-white px-4 py-4 shadow-1 dark:border-stroke-dark dark:bg-gray-dark md:px-5 2xl:px-10">
-      <div className="flex items-center gap-3">
+    <header className="tm-header">
+      <div className="flex min-w-0 items-center gap-3">
         <button
           onClick={toggleSidebar}
-          className="rounded-lg border px-1.5 py-1 dark:border-stroke-dark dark:bg-[#020D1A] hover:dark:bg-[#FFFFFF1A] lg:hidden"
+          className="tm-icon-button"
+          aria-label="Buka atau tutup navigasi"
         >
           <MenuIcon />
-          <span className="sr-only">Toggle Sidebar</span>
         </button>
-
-        {isMobile && (
-          <Link href="/" className="max-[430px]:hidden">
-            <Image
-              src="/images/logo/logo-icon.svg"
-              width={32}
-              height={32}
-              alt="Team Monitor"
-              role="presentation"
-            />
-          </Link>
-        )}
+        <div className="tm-breadcrumb">
+          <span className="hidden sm:inline">Workspace</span>
+          <Icon
+            name="chevron"
+            width={13}
+            height={13}
+            className="hidden sm:block"
+          />
+          <span className="truncate">{title}</span>
+        </div>
       </div>
-
-      <div className="flex items-center gap-3">
-        <ThemeToggleSwitch />
-        <UserInfo />
+      <div className="flex shrink-0 items-center gap-3 sm:gap-5">
+        <span className="tm-header-label hidden xl:flex">
+          <Icon name="branch" width={14} height={14} /> GitHub &amp; GitLab
+        </span>
+        <span className="tm-header-divider" />
+        {preview ? (
+          <span className="tm-preview-badge">
+            <Icon name="grid" width={15} height={15} />
+            Data contoh
+          </span>
+        ) : (
+          <UserInfo />
+        )}
       </div>
     </header>
   );

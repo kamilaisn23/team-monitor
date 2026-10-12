@@ -24,17 +24,23 @@ export async function GET(req: NextRequest) {
     const teamId = searchParams.get("teamId");
     const repoTeamId = searchParams.get("repoTeamId");
     const repositoryId = searchParams.get("repositoryId");
-    const platform = searchParams.get("platform") || "all";
+    const rawPlatform = searchParams.get("platform");
+    const platform = rawPlatform === "github" || rawPlatform === "gitlab" ? rawPlatform : "all";
     const activeParam = searchParams.get("active");
     const nameFilter = searchParams.get("name");
-    const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
+    const rawPage = Number(searchParams.get("page"));
+    const rawLimit = Number(searchParams.get("limit"));
+    const page = Math.max(1, Number.isFinite(rawPage) ? Math.trunc(rawPage) || 1 : 1);
     const limit = Math.min(
         100,
-        Math.max(1, parseInt(searchParams.get("limit") ?? "10", 10)),
+        Math.max(1, Number.isFinite(rawLimit) ? Math.trunc(rawLimit) || 10 : 10),
     );
     const skip = (page - 1) * limit;
-    const sortCol = (searchParams.get("sortCol") ?? "name") as SortCol;
-    const sortDir = (searchParams.get("sortDir") ?? "asc") as SortDir;
+    const validSortCols: SortCol[] = ["name", "role", "currentLoad", "workloadLevel"];
+    const rawSort = searchParams.get("sortCol") as SortCol;
+    const sortCol = validSortCols.includes(rawSort) ? rawSort : "name";
+    const sortDir: SortDir = searchParams.get("sortDir") === "desc" ? "desc" : "asc";
+    const workload = searchParams.get("workload");
 
     const repoFilter = {
         ignored: false,
@@ -62,8 +68,6 @@ export async function GET(req: NextRequest) {
         },
         orderBy: { name: "asc" },
     });
-
-    const total = members.length;
 
     const memberIds = members.map((m) => m.id);
 
@@ -121,7 +125,42 @@ export async function GET(req: NextRequest) {
             : String(bv).localeCompare(String(av));
     });
 
-    const data = allData.slice(skip, skip + limit);
-
-    return NextResponse.json({ total, data });
+    const openIssueWhere = {
+        state: "OPEN" as const,
+        repository: repoFilter,
+        assignees: { some: { teamMemberId: { in: memberIds } } },
+    };
+    const [totalOpenIssues, staleIssues] = await Promise.all([
+        prisma.issue.count({ where: openIssueWhere }),
+        prisma.issue.count({ where: {
+            ...openIssueWhere,
+            createdAt: { lt: new Date(Date.now() - thresholds.staleDays * 86400000) },
+        } }),
+    ]);
+    const distribution = { low: 0, medium: 0, high: 0 };
+    for (const member of allData) distribution[member.workloadLevel]++;
+    const summary = {
+        memberCount: allData.length,
+        activeMembers: allData.filter((m) => m.isActive).length,
+        totalOpenIssues,
+        highWorkload: distribution.high,
+        staleIssues,
+        distribution,
+    };
+    const teamMap = new Map<string, { id: string; name: string; memberCount: number; assignments: number; highWorkload: number }>();
+    for (const member of allData) {
+        for (const team of member.teams) {
+            const row = teamMap.get(team.id) ?? { ...team, memberCount: 0, assignments: 0, highWorkload: 0 };
+            row.memberCount++;
+            row.assignments += member.currentLoad;
+            if (member.workloadLevel === "high") row.highWorkload++;
+            teamMap.set(team.id, row);
+        }
+    }
+    const filteredData = ["low", "medium", "high"].includes(workload ?? "")
+        ? allData.filter((m) => m.workloadLevel === workload)
+        : allData;
+    const total = filteredData.length;
+    const data = filteredData.slice(skip, skip + limit);
+    return NextResponse.json({ total, data, summary, thresholds, teamOverview: Array.from(teamMap.values()) });
 }

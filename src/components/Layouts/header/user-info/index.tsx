@@ -24,7 +24,7 @@ export function UserInfo() {
   return (
     <Dropdown isOpen={isOpen} setIsOpen={setIsOpen}>
       <DropdownTrigger className="rounded align-middle outline-none ring-primary ring-offset-2 focus-visible:ring-1 dark:ring-offset-gray-dark">
-        <span className="sr-only">My Account</span>
+        <span className="sr-only">Akun saya</span>
 
         <figure className="flex items-center gap-3">
           {image ? (
@@ -42,7 +42,7 @@ export function UserInfo() {
             </div>
           )}
           <figcaption className="flex items-center gap-1 font-medium text-dark dark:text-dark-6 max-[1024px]:sr-only">
-            <span>{name}</span>
+            <span className="tm-account-name"><span>{name}</span><small>{session?.user?.isSuperadmin ? "Superadmin" : session?.user?.role?.toLowerCase()}</small></span>
             <ChevronUpIcon
               aria-hidden
               className={cn(
@@ -94,7 +94,7 @@ export function UserInfo() {
               className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-[9px] hover:bg-gray-2 hover:text-dark dark:hover:bg-dark-3 dark:hover:text-white"
             >
               <UserIcon />
-              <span className="mr-auto text-base font-medium">My Profile</span>
+              <span className="mr-auto text-sm font-medium">Profil saya</span>
             </Link>
           </div>
         )}
@@ -107,7 +107,7 @@ export function UserInfo() {
             onClick={() => { setIsOpen(false); signOut({ callbackUrl: "/login" }) }}
           >
             <LogOutIcon />
-            <span className="text-base font-medium">Sign out</span>
+            <span className="text-sm font-medium">Keluar</span>
           </button>
         </div>
       </DropdownContent>

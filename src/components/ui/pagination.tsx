@@ -38,7 +38,7 @@ export default function Pagination({
   }
 
   return (
-    <div className={cn('flex items-center justify-between gap-4 px-4 py-3', className)}>
+    <div className={cn('flex flex-wrap items-center justify-between gap-4 px-4 py-3', className)}>
       {/* Info */}
       <span className="text-sm text-body dark:text-dark-6">
         {start}–{end} of {totalItems}

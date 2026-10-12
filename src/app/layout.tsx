@@ -18,7 +18,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body>
         <Providers>
-          <NextTopLoader showSpinner={false} />
+          <NextTopLoader color="#4F6EF7" showSpinner={false} />
           {children}
         </Providers>
       </body>

@@ -57,7 +57,7 @@ NextAuth.js handler. Manages sign-in, callback, sign-out, and session.
 
 ### `GET /api/dashboard`
 
-Returns paginated member workload list.
+Returns a paginated member workload list and a capacity overview of the full filtered scope.
 
 **Auth:** All roles except `UNASSIGNED`
 
@@ -75,6 +75,7 @@ Returns paginated member workload list.
 | `limit` | `number` | `10` | Items per page (max 100) |
 | `sortCol` | `"name" \| "role" \| "currentLoad" \| "workloadLevel"` | `"name"` | Sort column |
 | `sortDir` | `"asc" \| "desc"` | `"asc"` | Sort direction |
+| `workload` | `"low" \| "medium" \| "high"` | All tiers | Filter the member list by workload tier; overview totals retain the full scope |
 
 **Response `200`:**
 ```json
@@ -93,9 +94,23 @@ Returns paginated member workload list.
       "currentLoad": 5,
       "workloadLevel": "medium"
     }
+  ],
+  "summary": {
+    "memberCount": 25,
+    "activeMembers": 22,
+    "totalOpenIssues": 75,
+    "highWorkload": 4,
+    "staleIssues": 5,
+    "distribution": { "low": 7, "medium": 14, "high": 4 }
+  },
+  "thresholds": { "lowMax": 3, "mediumMax": 7, "staleDays": 30 },
+  "teamOverview": [
+    { "id": "clx...", "name": "Kerjabaik", "memberCount": 25, "assignments": 80, "highWorkload": 4 }
   ]
 }
 ```
+
+`summary` and `teamOverview` are calculated before pagination and the workload-tier filter. `totalOpenIssues` counts distinct open issues assigned to members in the selected scope, avoiding duplicate counts for shared assignments. `staleIssues` counts open issues whose creation date exceeds the configured age threshold. Team assignment counts reflect scoped members and can overlap for members belonging to multiple teams. Existing `total` and `data` fields are preserved.
 
 **Errors:**
 - `401` — `{ "error": "Unauthorized" }`
