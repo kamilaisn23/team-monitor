@@ -8,7 +8,9 @@ export default auth((req) => {
   // Public routes
   // Public design preview contains only fictional, browser-local data.
   if (pathname === '/preview') return NextResponse.next()
-  if (pathname.startsWith('/api/auth')) return NextResponse.next()
+  // API handlers enforce their own session/role or service-token access checks.
+  // Keep JSON 401/403 responses intact for the Vue client.
+  if (pathname.startsWith('/api/')) return NextResponse.next()
 
   // Not authenticated → redirect to login
   if (!session) {
@@ -55,5 +57,5 @@ export default auth((req) => {
 })
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|fonts|images).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|fonts|images|vue/).*)'],
 }

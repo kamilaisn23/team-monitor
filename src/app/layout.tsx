@@ -1,27 +1,7 @@
-import type { Metadata } from 'next'
-import NextTopLoader from 'nextjs-toploader'
-import { Providers } from './providers'
-import '@/css/globals.css'
-import '@/css/satoshi.css'
+import type { ReactNode } from 'react';
 
-export const metadata: Metadata = {
-  title: 'Team Monitor',
-  description: 'Engineering team activity monitor',
-}
-
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  return (
-    <html lang="en" suppressHydrationWarning>
-      <body>
-        <Providers>
-          <NextTopLoader color="#4F6EF7" showSpinner={false} />
-          {children}
-        </Providers>
-      </body>
-    </html>
-  )
+// Next.js hosts APIs, Auth.js and the Vue SPA fallback.
+// Interactive application pages live in frontend/src/*.vue.
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return <html lang="id"><body>{children}</body></html>;
 }

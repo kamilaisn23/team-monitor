@@ -5,6 +5,7 @@ node_modules/
 .next/
 out/
 scripts-dist/
+public/vue/
 
 # Environment variables (injected at runtime)
 .env

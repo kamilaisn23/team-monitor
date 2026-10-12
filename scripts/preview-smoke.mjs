@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { build } from "esbuild";
-const result = await build({ entryPoints: ["src/components/dashboard/preview-data.ts"], bundle: true, write: false, platform: "node", format: "cjs" });
+const result = await build({ entryPoints: ["src/lib/preview-data.ts"], bundle: true, write: false, platform: "node", format: "cjs" });
 const module = { exports: {} };
 new Function("module", "exports", result.outputFiles[0].text)(module, module.exports);
 const { getPreviewDashboard, previewMembers } = module.exports;
