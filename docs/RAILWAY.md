@@ -1,6 +1,6 @@
 # Railway deployment
 
-The `team-monitor` project deploys `kamilaisn23/team-monitor` branch `main` to the `web` service, with a separate Railway PostgreSQL service.
+The `team-monitor` project deploys a committed snapshot of `kamilaisn23/team-monitor` branch `main` to the `web` service, with a separate Railway PostgreSQL service. Deployment currently uses Railway CLI upload because Railway's GitHub integration does not have access to the repository. Grant repository access to that integration before enabling GitHub autodeploys.
 
 The existing Dockerfile builds the Next.js standalone server and sync-worker bundles. The app binds to `0.0.0.0` using `PORT=3000`. `railway.json` checks `/preview` before marking the deployment healthy.
 
@@ -15,5 +15,5 @@ Useful commands after linking the project:
 ```powershell
 railway service status --service web --environment production
 railway logs --service web --environment production --lines 100
-railway redeploy --service web --environment production --from-source --yes
+railway up --service web --environment production --detach
 ```
