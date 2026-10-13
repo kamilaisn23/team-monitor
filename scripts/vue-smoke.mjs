@@ -47,6 +47,7 @@ HTMLDialogElement.prototype.close = function () {
 };
 const requests = [];
 let live = false;
+let failDashboardIssues = false;
 const liveTeams = [
   { id: "t1", name: "Product", memberCount: 1 },
   { id: "t2", name: "Platform", memberCount: 0 },
@@ -132,6 +133,15 @@ globalThis.fetch = async (url, options = {}) => {
           issuesStillOpen: 0,
         },
       });
+    if (pathname === "/api/dashboard" && new URL(String(url), 'http://localhost').searchParams.has('issueView')) {
+      if (failDashboardIssues) return Response.json({ error: 'Daftar isu gagal dimuat' }, { status: 503 });
+      return Response.json({ data: [{
+        id: 'live-issue', title: 'Live issue needing review', url: 'https://github.com/team/test/issues/1',
+        createdAt: new Date(Date.now() - 45 * 86400000).toISOString(), ageDays: 45,
+        repository: { id: 'r1', name: 'team/test', platform: 'github' },
+        assignees: [{ memberId: 'm1', name: 'Test Member' }],
+      }], total: 1, page: 1, limit: 20 });
+    }
     if (pathname === "/api/dashboard")
       return Response.json({
         data: [],
@@ -142,9 +152,11 @@ globalThis.fetch = async (url, options = {}) => {
           totalOpenIssues: 0,
           highWorkload: 0,
           staleIssues: 0,
+          resolvedLast7Days: 0,
           distribution: { low: 0, medium: 0, high: 0 },
         },
         thresholds: { lowMax: 3, mediumMax: 7, staleDays: 30 },
+        attentionIssues: [],
         teamOverview: [],
       });
   }
@@ -196,8 +208,13 @@ await router.push("/preview");
 await router.isReady();
 app.mount("#app");
 async function settle() {
-  await nextTick();
-  await new Promise((resolve) => setTimeout(resolve, 25));
+  // Drain microtasks and queued macrotasks (fetch mocks, router guards and
+  // page transitions) instead of sleeping on a fixed wall-clock delay, which
+  // races under CPU load and makes the suite flaky.
+  for (let i = 0; i < 8; i++) {
+    await nextTick();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
   await nextTick();
 }
 async function click(label) {
@@ -233,13 +250,32 @@ async function input(selector, value) {
 await settle();
 assert.equal(document.querySelectorAll(".workspace-sidebar nav a").length, 6);
 assert.equal(document.querySelectorAll(".metric-card").length, 4);
+assert.ok(document.querySelector('.manager-brief').textContent.includes('12 isu selesai'));
+assert.equal(document.querySelectorAll('.brief-attention-item').length, 3);
+assert.ok(document.querySelector('.brief-attention-note').textContent.includes('bukan sejak aktivitas terakhir'));
+await click('Tinjau semua isu mengendap');
+assert.equal(document.querySelectorAll('dialog .issue-row').length, 11);
+document.querySelector('dialog .issue-row').click();
+await settle();
+assert.ok(document.querySelector('dialog').textContent.includes('Aditya'));
+await click('Tutup detail');
+await click('Tinjau anggota dengan beban tinggi');
+assert.equal(document.querySelectorAll('.data-table tbody tr').length, 2);
+await textClick('Semua');
+assert.equal(document.querySelectorAll('.data-table tbody tr').length, 10);
 assert.equal(document.querySelectorAll(".data-table tbody tr").length, 10);
 await click("Halaman berikutnya");
 assert.equal(document.querySelectorAll(".data-table tbody tr").length, 2);
 await click("Lihat detail beban tinggi");
 assert.equal(document.querySelectorAll(".data-table tbody tr").length, 2);
 await click("Lihat detail isu terbuka");
-assert.equal(document.querySelectorAll("dialog .issue-row").length, 51);
+assert.equal(document.querySelectorAll("dialog .issue-row").length, 20);
+document.querySelector('dialog button[aria-label="Halaman berikutnya"]').click();
+await settle();
+assert.equal(document.querySelectorAll("dialog .issue-row").length, 20);
+document.querySelector('dialog button[aria-label="Halaman berikutnya"]').click();
+await settle();
+assert.equal(document.querySelectorAll("dialog .issue-row").length, 11);
 await click("Tutup detail");
 await click("Lihat detail isu mengendap");
 assert.equal(document.querySelectorAll("dialog .issue-row").length, 11);
@@ -395,6 +431,25 @@ assert.equal(
   "/dashboard",
   "Ordinary admin cannot open superadmin settings.",
 );
+assert.ok(document.querySelector('.manager-brief').textContent.includes('Belum ada anggota'));
+assert.equal(document.querySelector('[aria-label="Tinjau semua isu mengendap"]').disabled, true);
+await click('Lihat detail isu mengendap');
+assert.equal(document.querySelector('dialog .issue-row').tagName, 'A');
+assert.equal(document.querySelector('dialog .issue-row').href, 'https://github.com/team/test/issues/1');
+assert.equal(document.querySelector('dialog .issue-row').target, '_blank');
+assert.ok(document.querySelector('dialog .issue-row').rel.includes('noopener'));
+assert.ok(requests.some((request) => request.url.startsWith('/api/dashboard?') && request.url.includes('issueView=stale')));
+await click('Tutup detail');
+failDashboardIssues = true;
+await click('Lihat detail isu mengendap');
+assert.ok(document.querySelector('dialog [role="alert"]').textContent.includes('Daftar isu gagal dimuat'));
+assert.equal(document.querySelector('dialog .issue-row'), null);
+failDashboardIssues = false;
+document.querySelector('dialog [role="alert"] button').click();
+await settle();
+assert.equal(document.querySelector('dialog [role="alert"]'), null);
+assert.ok(document.querySelector('dialog .issue-row'));
+await click('Tutup detail');
 workspace.session.user.isSuperadmin = true;
 await router.push("/admin/settings");
 await settle();

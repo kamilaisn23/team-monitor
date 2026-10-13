@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getWorkloadLevel, getWorkloadThresholds } from "@/lib/settings";
 import { isAdminRole } from "@/lib/session";
+import { dashboardIssue, dashboardIssueSelect } from "@/lib/dashboard-issues";
 
 type SortCol = "name" | "role" | "currentLoad" | "workloadLevel";
 type SortDir = "asc" | "desc";
@@ -70,18 +71,49 @@ export async function GET(req: NextRequest) {
     });
 
     const memberIds = members.map((m) => m.id);
+    const memberIdSet = new Set(memberIds);
+    const now = new Date();
+    const thresholds = await getWorkloadThresholds();
+    const openIssueWhere = {
+        state: "OPEN" as const,
+        repository: repoFilter,
+        assignees: { some: { teamMemberId: { in: memberIds } } },
+    };
+    const staleIssueWhere = {
+        ...openIssueWhere,
+        createdAt: { lt: new Date(now.getTime() - thresholds.staleDays * 86400000) },
+    };
+    const issueView = searchParams.get("issueView");
+    if (issueView === "open" || issueView === "stale") {
+        const rawIssuePage = Number(searchParams.get("issuePage"));
+        const rawIssueLimit = Number(searchParams.get("issueLimit"));
+        const issuePage = Math.max(1, Number.isFinite(rawIssuePage) ? Math.trunc(rawIssuePage) || 1 : 1);
+        const issueLimit = Math.min(100, Math.max(1, Number.isFinite(rawIssueLimit) ? Math.trunc(rawIssueLimit) || 20 : 20));
+        const where = issueView === "stale" ? staleIssueWhere : openIssueWhere;
+        const [total, issues] = await Promise.all([
+            prisma.issue.count({ where }),
+            prisma.issue.findMany({
+                where,
+                select: dashboardIssueSelect,
+                orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+                skip: (issuePage - 1) * issueLimit,
+                take: issueLimit,
+            }),
+        ]);
+        return NextResponse.json({
+            data: issues.map((issue) => dashboardIssue(issue, memberIdSet, now)),
+            total, page: issuePage, limit: issueLimit,
+        });
+    }
 
-    const [thresholds, loadCounts] = await Promise.all([
-        getWorkloadThresholds(),
-        prisma.issueAssignee.groupBy({
+    const loadCounts = await prisma.issueAssignee.groupBy({
             by: ["teamMemberId"],
             where: {
                 teamMemberId: { in: memberIds },
                 issue: { state: "OPEN", repository: repoFilter },
             },
             _count: { issueId: true },
-        }),
-    ]);
+        });
 
     const loadMap = new Map(
         loadCounts.map((r) => [r.teamMemberId, r._count.issueId]),
@@ -125,17 +157,20 @@ export async function GET(req: NextRequest) {
             : String(bv).localeCompare(String(av));
     });
 
-    const openIssueWhere = {
-        state: "OPEN" as const,
-        repository: repoFilter,
-        assignees: { some: { teamMemberId: { in: memberIds } } },
-    };
-    const [totalOpenIssues, staleIssues] = await Promise.all([
+    const [totalOpenIssues, staleIssues, resolvedLast7Days, attentionIssues] = await Promise.all([
         prisma.issue.count({ where: openIssueWhere }),
+        prisma.issue.count({ where: staleIssueWhere }),
         prisma.issue.count({ where: {
             ...openIssueWhere,
-            createdAt: { lt: new Date(Date.now() - thresholds.staleDays * 86400000) },
+            state: "CLOSED",
+            closedAt: { gte: new Date(now.getTime() - 7 * 86400000), lte: now },
         } }),
+        prisma.issue.findMany({
+            where: staleIssueWhere,
+            select: dashboardIssueSelect,
+            orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+            take: 3,
+        }),
     ]);
     const distribution = { low: 0, medium: 0, high: 0 };
     for (const member of allData) distribution[member.workloadLevel]++;
@@ -145,6 +180,7 @@ export async function GET(req: NextRequest) {
         totalOpenIssues,
         highWorkload: distribution.high,
         staleIssues,
+        resolvedLast7Days,
         distribution,
     };
     const teamMap = new Map<string, { id: string; name: string; memberCount: number; assignments: number; highWorkload: number }>();
@@ -162,5 +198,5 @@ export async function GET(req: NextRequest) {
         : allData;
     const total = filteredData.length;
     const data = filteredData.slice(skip, skip + limit);
-    return NextResponse.json({ total, data, summary, thresholds, teamOverview: Array.from(teamMap.values()) });
+    return NextResponse.json({ total, data, summary, thresholds, attentionIssues: attentionIssues.map((issue) => dashboardIssue(issue, memberIdSet, now)), teamOverview: Array.from(teamMap.values()) });
 }

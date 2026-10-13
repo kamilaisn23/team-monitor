@@ -2,6 +2,8 @@ export type {
   DashboardMember,
   DashboardResponse,
   WorkloadLevel,
+  DashboardIssue,
+  DashboardIssueResponse,
 } from "../../src/types/dashboard";
 export interface Team {
   id: string;

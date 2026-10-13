@@ -4,12 +4,17 @@
     "private": true,
     "scripts": {
         "dev": "node scripts/dev.mjs",
-        "build": "npm run build:frontend && next build",
+        "build": "npm run build:worker && npm run build:frontend && next build",
+        "build:worker": "node scripts/build-worker.mjs",
         "build:frontend": "vite build --config frontend/vite.config.ts",
         "start": "node scripts/start.mjs",
         "sync": "ts-node --project tsconfig.server.json scripts/sync-cron.ts",
+        "docker:prepare": "node scripts/docker.mjs prepare",
+        "docker:up": "node scripts/docker.mjs up",
+        "docker:down": "node scripts/docker.mjs down",
+        "docker:status": "node scripts/docker.mjs status",
         "typecheck": "vue-tsc --noEmit -p frontend/tsconfig.json && tsc --noEmit",
-        "test": "node scripts/preview-smoke.mjs && node scripts/dashboard-smoke.mjs && node scripts/member-issues-smoke.mjs && node scripts/vue-smoke.mjs",
+        "test": "node scripts/github-smoke.mjs && node scripts/preview-smoke.mjs && node scripts/dashboard-smoke.mjs && node scripts/member-issues-smoke.mjs && node scripts/vue-smoke.mjs",
         "postinstall": "prisma generate"
     },
     "dependencies": {

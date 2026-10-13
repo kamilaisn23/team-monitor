@@ -7,7 +7,7 @@ A web application for engineering managers to monitor team activity across GitHu
 - **Team Dashboard** — workload overview with open issue counts per member (low / medium / high indicators)
 - **Member Profiles** — per-member activity: current load, monthly stats, issue history
 - **Monthly Reports** — side-by-side stats table with CSV export
-- **Sync Engine** — hourly background sync from GitHub (org-wide) and GitLab (group-wide)
+- **Sync Engine** — scheduled background sync from GitHub (personal account or organization) and GitLab (group-wide)
 - **Admin Panel** — manage members, teams, and repositories (superadmin only)
 - **GitHub SSO** — all users log in via GitHub OAuth
 - **Role-based Access** — Superadmin / Manager / Developer roles with appropriate restrictions
@@ -24,7 +24,7 @@ A web application for engineering managers to monitor team activity across GitHu
 | ORM | Prisma 5 |
 | Database | PostgreSQL 16 |
 | Auth | NextAuth.js v5 (GitHub OAuth) |
-| UI | Vue single-file components, custom responsive CSS, Satoshi, Lucide |
+| UI | Vue single-file components, custom responsive CSS, Inter, Lucide |
 | Charts | Data-driven capacity ring and activity heatmap |
 | Background Sync | node-cron (separate Docker container) |
 | Deployment | Docker Compose |
@@ -91,6 +91,10 @@ POSTGRES_PASSWORD=password
 
 ### 3. Set up the database
 
+For repositories owned by a personal GitHub account, set `GITHUB_USER_NAME=your-username` and leave `GITHUB_ORG_NAME` empty. Sync searches issues assigned to or authored by registered members inside that account's repositories. Public repositories can be read without a token; for private repositories, set `GITHUB_TOKEN` to a token authorized for those repositories. Existing organization configuration with `GITHUB_ORG_NAME` and `GITHUB_ORG_TOKEN` remains supported. GitHub OAuth is used for signing in; the background sync token is configured separately.
+
+`npm run dev` builds the sync worker and manager and sets their local runtime paths automatically. GitHub-only jobs (`POST /api/sync?source=github`) skip GitLab and Kerjabaik. To monitor the superadmin's own work, also add that username as an active member: the superadmin login itself does not create a member record.
+
 **Option A — Local PostgreSQL:**
 ```bash
 createdb team_monitor
@@ -128,6 +132,8 @@ The Vue/Vite frontend runs on port 3000 and proxies `/api` to the Next.js backen
 npm run typecheck
 npm test
 ```
+
+The dashboard includes a manager summary with scoped issue-age alerts, high-workload members, and the count of issues closed in the last seven days. The alert panel shows the three oldest open issues beyond the configured `staleDays` threshold. “Tinjau isu” opens the full paginated list; live issues link to their source on GitHub or GitLab. Age is measured from creation time and does not indicate the last activity or a confirmed blocker. Summary and detail lists follow the team, member, active status, platform, and repository filters; workload tabs and directory pagination do not change the summary scope. Preview uses fictional completion history and never calls private APIs.
 
 ### Run the sync job manually (development)
 
@@ -183,7 +189,7 @@ docker compose down -v
 1. Open the app and sign in with the **superadmin** GitHub account (`SUPERADMIN_GITHUB_USERNAME`)
 2. Go to **Admin → Members** and add team members with their GitHub/GitLab usernames
 3. Go to **Admin → Teams** and create teams, then assign members
-4. Click **Trigger Sync** in the sidebar (or wait for the hourly cron) to pull issues
+4. Click **Trigger Sync** in the sidebar (or wait for the configured cron schedule) to pull issues
 5. Once sync completes, **Admin → Repositories** will show discovered repos — tag them to teams as needed
 6. Share the app URL with your team; members can log in with their GitHub accounts
 
@@ -197,6 +203,7 @@ team-monitor/
 │   ├── src/
 │   │   ├── App.vue           # Navy sidebar, header and responsive shell
 │   │   ├── components/       # Reusable Vue cards, dialogs and controls
+│   │   ├── assets/fonts/     # Locally bundled Inter font and license
 │   │   ├── pages/            # Dashboard, reports, CRUD, profile and login
 │   │   ├── router.ts         # Vue Router and client navigation guards
 │   │   ├── state.ts          # Shared workspace and auth state
@@ -207,7 +214,6 @@ team-monitor/
 │   │   ├── api/              # Existing API and GitHub OAuth endpoints
 │   │   └── [...path]/        # Vue SPA fallback for production deep links
 │   ├── lib/                  # Auth, Prisma, synchronization, sample data
-│   ├── fonts/                # Locally bundled Satoshi font
 │   └── types/                # Shared backend/dashboard contracts
 ├── public/vue/               # Ignored generated Vue build
 ├── scripts/                  # Dev orchestration, sync workers, smoke tests
@@ -233,8 +239,8 @@ The frontend is entirely Vue. Next.js and its React runtime remain backend depen
 
 ## Sync Details
 
-- Runs every hour at `:00` via node-cron
-- Also runs once on sync container startup
+- GitHub/GitLab default schedule: daily at 02:00 WIB (`SYNC_CRON_SCHEDULE=0 19 * * *` with a UTC cron host). The separate cron process/container must be running for scheduled jobs.
+- Kerjabaik defaults to hourly; starting the app alone does not run these schedulers.
 - Manual trigger: **Trigger Sync** button in sidebar (superadmin only) or `POST /api/sync`
 - GitHub: uses Search API (`org:{org} assignee:{username}` + `author:{username}`) with 2s delay between calls to respect the 30 req/min rate limit
 - GitLab: uses group issues API (`/api/v4/groups/{id}/issues`) with 500ms delay between calls

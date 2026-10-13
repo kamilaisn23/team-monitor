@@ -8,6 +8,7 @@ import Avatar from "../components/Avatar.vue";
 import Pager from "../components/Pager.vue";
 import Modal from "../components/Modal.vue";
 import MemberDialog from "../components/MemberDialog.vue";
+import ManagerBrief from "../components/ManagerBrief.vue";
 import { api, query } from "../api";
 import { workspace } from "../state";
 import { sectionHref } from "../router";
@@ -17,11 +18,12 @@ import {
   type DashboardResponse,
   type DashboardMember,
   type WorkloadLevel,
+  type DashboardIssue,
+  type DashboardIssueResponse,
 } from "../types";
 import {
   getPreviewDashboard,
-  getPreviewIssues,
-  previewMembers,
+  getPreviewDashboardIssues,
 } from "../../../src/lib/preview-data";
 
 const router = useRouter();
@@ -42,6 +44,9 @@ const filtersOpen = ref(false),
   details = ref("");
 const directory = ref<HTMLElement>();
 const searchInput = ref<HTMLInputElement>();
+const issueResponse = ref<DashboardIssueResponse>();
+const issuePage = ref(1), issueLoading = ref(false), issueError = ref("");
+let issueRequestId = 0;
 const levels: WorkloadLevel[] = ["low", "medium", "high"];
 const params = computed(() =>
   query({
@@ -109,19 +114,37 @@ function profile(member: DashboardMember) {
   else router.push("/members/" + member.memberId);
 }
 function issueMetric(type: string) {
-  if (workspace.preview) details.value = type;
-  else {
-    sortCol.value = "currentLoad";
-    sortDir.value = "desc";
-    focusDirectory();
+  issuePage.value = 1;
+  details.value = type;
+}
+async function loadDetailIssues() {
+  const id = ++issueRequestId;
+  if (!['open', 'stale'].includes(details.value)) return;
+  issueLoading.value = true;
+  issueError.value = "";
+  issueResponse.value = undefined;
+  const issueParams = new URLSearchParams(params.value);
+  issueParams.set('issueView', details.value);
+  issueParams.set('issuePage', String(issuePage.value));
+  issueParams.set('issueLimit', '20');
+  try {
+    const data = workspace.preview
+      ? getPreviewDashboardIssues(issueParams)
+      : await api<DashboardIssueResponse>('/api/dashboard?' + issueParams);
+    if (id === issueRequestId) issueResponse.value = data;
+  } catch (e) {
+    if (id === issueRequestId) issueError.value = (e as Error).message;
+  } finally {
+    if (id === issueRequestId) issueLoading.value = false;
   }
 }
-const detailIssues = computed(() => {
-  const list = getPreviewIssues(params.value);
-  return details.value === "stale"
-    ? list.filter((issue) => issue.ageDays > 30)
-    : list;
-});
+watch(params, () => { issuePage.value = 1; });
+watch([details, params, issuePage, () => workspace.refreshKey], loadDetailIssues);
+function previewIssue(issue: DashboardIssue) {
+  if (!workspace.preview) return;
+  details.value = '';
+  memberId.value = issue.assignees[0]?.memberId || '';
+}
 function clearFilters() {
   name.value = "";
   workload.value = "all";
@@ -187,6 +210,14 @@ const scopeName = computed(
         @click="issueMetric('stale')"
       />
     </div>
+    <ManagerBrief
+      :response="error ? undefined : response"
+      :loading="loading"
+      :scope="scopeName"
+      @review="issueMetric('stale')"
+      @workload="focusDirectory('high')"
+      @issue="previewIssue"
+    />
     <div class="insight-grid">
       <section class="capacity-panel">
         <div class="panel-title">
@@ -563,7 +594,7 @@ const scopeName = computed(
       :description="
         workspace.preview
           ? 'Data contoh dalam cakupan ' + scopeName
-          : 'Distribusi anggota dalam cakupan ' + scopeName
+          : (details === 'capacity' ? 'Distribusi anggota' : 'Isu terbuka') + ' dalam cakupan ' + scopeName
       "
       @close="details = ''"
       ><div v-if="details === 'capacity'" class="detail-list">
@@ -585,15 +616,20 @@ const scopeName = computed(
           ><Icon name="arrow" :size="18" />
         </button>
       </div>
+      <template v-else>
+      <p v-if="details === 'stale'" class="dashboard-issue-note">Isu terbuka berusia lebih dari {{ response?.thresholds.staleDays ?? 30 }} hari sejak dibuat. Usia tidak menunjukkan aktivitas terakhir.</p>
+      <div v-if="issueLoading" class="loading-state" role="status"><Icon name="refresh" class="spinning" />Memuat daftar isu…</div>
+      <div v-else-if="issueError" class="error-banner" role="alert"><Icon name="alert" />{{ issueError }}<button @click="loadDetailIssues">Coba lagi</button></div>
       <div v-else class="issue-list">
-        <button
-          v-for="issue in detailIssues"
+        <component
+          :is="workspace.preview ? 'button' : 'a'"
+          v-for="issue in issueResponse?.data"
           :key="issue.id"
           class="issue-row"
-          @click="
-            details = '';
-            memberId = issue.memberId;
-          "
+          :href="workspace.preview ? undefined : issue.url"
+          :target="workspace.preview ? undefined : '_blank'"
+          :rel="workspace.preview ? undefined : 'noopener noreferrer'"
+          @click="previewIssue(issue)"
         >
           <span class="issue-symbol"><Icon name="dot" :size="18" /></span>
           <div>
@@ -601,20 +637,21 @@ const scopeName = computed(
             ><small
               >{{ issue.repository.name }} ·
               {{
-                previewMembers.find(
-                  (member) => member.memberId === issue.memberId,
-                )?.name
+                issue.assignees.map((member) => member.name).join(', ')
               }}</small
             >
           </div>
-          <span class="badge" :class="issue.ageDays > 30 ? 'rose' : 'neutral'"
+          <span class="badge" :class="details === 'stale' ? 'rose' : 'neutral'"
             >{{ issue.ageDays }} hari</span
           >
-        </button>
-        <div v-if="!detailIssues.length" class="compact-empty">
+          <Icon v-if="!workspace.preview" name="external" :size="15" />
+        </component>
+        <div v-if="!issueResponse?.data.length" class="compact-empty">
           Tidak ada isu dalam cakupan ini.
         </div>
-      </div></Modal
+      </div>
+      <Pager v-if="!issueLoading && !issueError && issueResponse" :page="issueResponse.page" :total="issueResponse.total" :limit="issueResponse.limit" @change="issuePage = $event" />
+      </template></Modal
     >
     <MemberDialog
       v-if="memberId"
