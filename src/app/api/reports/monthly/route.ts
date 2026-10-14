@@ -41,6 +41,7 @@ export async function GET(req: NextRequest) {
     }
 
     const repositoryId = searchParams.get("repositoryId");
+    const teamId = searchParams.get("teamId");
     const nameFilter = searchParams.get("name");
     const platform = searchParams.get("platform") || "all";
     const groupBy = searchParams.get("groupBy"); // "team" or null
@@ -80,6 +81,7 @@ export async function GET(req: NextRequest) {
         where: {
             ...memberReadScope(session),
             role: { not: "UNASSIGNED" },
+            ...(teamId ? { teams: { some: { teamId } } } : {}),
             ...(nameFilter
                 ? {
                       name: {
@@ -190,8 +192,8 @@ export async function GET(req: NextRequest) {
                     ? row.teamIds.map((id, i) => ({
                           id,
                           name: row.teamNames[i] ?? "",
-                      }))
-                    : [{ id: "__none__", name: "(No Team)" }];
+                      })).filter(team => !teamId || team.id === teamId)
+                    : teamId ? [] : [{ id: "__none__", name: "(No Team)" }];
 
             for (const team of teamEntries) {
                 if (!teamMap.has(team.id)) {

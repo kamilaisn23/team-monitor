@@ -134,6 +134,7 @@ globalThis.fetch = async (url, options = {}) => {
       return Response.json({
         data: [],
         total: 0,
+        groups: [],
         totals: {
           issuesCreated: 0,
           issuesAssigned: 0,
@@ -589,6 +590,14 @@ assert.equal(document.querySelector('[aria-label="Buka pusat perhatian tim"]'), 
 await router.push('/reports');
 await settle();
 assert.ok(document.querySelector('.page-heading').textContent.includes('laporan Anda'));
+workspace.teamId = 't1';
+await settle();
+assert.equal(router.currentRoute.value.path, '/reports');
+const scopedReportRequest = requests.filter(request => request.url.startsWith('/api/reports/monthly?')).at(-1);
+assert.equal(new URL(scopedReportRequest.url, 'http://localhost').searchParams.get('teamId'), 't1');
+workspace.teamId = 't2';
+await settle();
+assert.equal(new URL(requests.filter(request => request.url.startsWith('/api/reports/monthly?')).at(-1).url, 'http://localhost').searchParams.get('teamId'), 't2');
 app.unmount();
 dom.window.close();
 console.log(

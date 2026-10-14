@@ -7,8 +7,8 @@ const time = new Date('2026-10-10T00:00:00Z');
 const memberships = [{ teamMemberId: 'a' }, { teamMemberId: 'b' }];
 const teams = [{ id: 't1', name: 'Shared team', members: memberships }, { id: 't2', name: 'Other team', members: [memberships[1]] }];
 const members = [
-  { id: 'a', name: 'Alpha Dev', role: 'DEVELOPER', isActive: true, teams: [{ team: teams[0] }] },
-  { id: 'b', name: 'Beta Dev', role: 'DEVELOPER', isActive: true, teams: [{ team: teams[0] }, { team: teams[1] }] },
+  { id: 'a', name: 'Alpha Dev', role: 'DEVELOPER', isActive: true, teams: [{ team: teams[0], teamId: 't1' }] },
+  { id: 'b', name: 'Beta Dev', role: 'DEVELOPER', isActive: true, teams: [{ team: teams[0], teamId: 't1' }, { team: teams[1], teamId: 't2' }] },
 ];
 const repos = [{ id: 'ra', name: 'Self repo', platform: 'GITHUB', ignored: false, teams: [{ team: teams[0], teamId: 't1' }] }, { id: 'rb', name: 'Other repo', platform: 'GITHUB', ignored: false, teams: [{ team: teams[1], teamId: 't2' }] }];
 const issues = ['a', 'b'].map((id, index) => ({ id: 'i' + id, title: id, state: 'OPEN', repository: repos[index], repositoryId: repos[index].id, creatorTeamMemberId: id, createdAt: time, closedAt: null, syncedAt: new Date(time.getTime() + index * 1000), assignees: [{ teamMemberId: id }] }));
@@ -75,6 +75,7 @@ assert.equal((await get('members', 'teamId=t2')).body.length, 0);
 assert.deepEqual((await get('report')).body.data.map(member => member.memberId), ['a']);
 assert.equal((await get('report')).body.totals.issuesCreated, 1);
 assert.equal((await get('report', 'name=Beta')).body.total, 0);
+assert.equal((await get('report', 'teamId=t2')).body.total, 0, 'Team filter cannot bypass own scope');
 assert.ok((await get('csv')).body.includes('Alpha Dev'));
 assert.ok(!(await get('csv', 'memberId=b')).body.includes('Beta Dev'));
 assert.deepEqual((await get('teams')).body.map(team => team.id), ['t1']);
@@ -94,5 +95,16 @@ for (const role of ['MANAGER', 'ADMIN']) {
   assert.ok((await get('csv')).body.includes('Beta Dev'));
   assert.equal((await get('teams')).body.length, 2);
   assert.equal((await get('repos')).body.length, 2);
+  const selected = (await get('report', 'teamId=t2')).body;
+  assert.deepEqual(selected.data.map(member => member.memberId), ['b']);
+  assert.equal(selected.totals.issuesCreated, 1);
+  const grouped = (await get('report', 'teamId=t2&groupBy=team')).body;
+  assert.deepEqual(grouped.groups.map(team => team.teamId), ['t2'], 'Cross-team member should not create out-of-scope groups');
+  const csv = (await get('csv', 'teamId=t2')).body;
+  assert.ok(csv.includes('Beta Dev') && !csv.includes('Alpha Dev'));
+  assert.equal((await get('report', 'teamId=missing')).body.total, 0);
+  assert.equal((await get('report', 'teamId=missing&groupBy=team')).body.groups.length, 0);
+  assert.equal((await get('csv', 'teamId=missing')).body.split('\n').length, 1, 'Empty scope exports only headers');
+  assert.deepEqual((await get('report', 'teamId=t2&page=2')).body.totals, selected.totals, 'Totals do not depend on directory page');
 }
 console.log('Read access checks passed: personal reports/CSV, members, teams/counts, repositories, sync timestamps, profile guards, missing identity and unassigned denial.');

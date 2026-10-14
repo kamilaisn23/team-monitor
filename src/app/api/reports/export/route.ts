@@ -34,6 +34,7 @@ export async function GET(req: NextRequest) {
   }
 
   const repositoryId = searchParams.get('repositoryId')
+  const teamId = searchParams.get('teamId')
   const nameFilter = searchParams.get('name')
   const platform = searchParams.get('platform') || 'all'
 
@@ -47,6 +48,7 @@ export async function GET(req: NextRequest) {
     where: {
       ...memberReadScope(session),
       role: { not: 'UNASSIGNED' },
+      ...(teamId ? { teams: { some: { teamId } } } : {}),
       ...(nameFilter ? { name: { contains: nameFilter, mode: 'insensitive' as const } } : {}),
     },
     orderBy: { name: 'asc' },

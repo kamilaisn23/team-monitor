@@ -118,7 +118,7 @@ async function sync() {
   }
 }
 function selectTeam() {
-  if (section.value !== "dashboard") router.push(sectionHref("dashboard"));
+  if (!['dashboard', 'reports'].includes(section.value)) router.push(sectionHref("dashboard"));
 }
 async function logout() {
   try {

@@ -50,6 +50,7 @@ const loading = ref(false),
   memberId = ref("");
 const params = computed(() =>
   query({
+    teamId: workspace.teamId,
     ...(mode.value === "monthly"
       ? { month: month.value }
       : { start: start.value, end: end.value }),
@@ -77,6 +78,7 @@ const samples = computed(() =>
         : (a.currentLoad - b.currentLoad) * (sortDir.value === "asc" ? 1 : -1),
     ),
 );
+const scopeName = computed(() => workspace.teams.find(team => team.id === workspace.teamId)?.name || 'Seluruh tim');
 let requestId = 0;
 async function load() {
   if (workspace.preview) return;
@@ -177,7 +179,7 @@ function download() {
           ? 'Snapshot beban saat ini untuk menjelajahi desain laporan.'
           : isDeveloper ? 'Tinjau aktivitas pribadi per periode dan ekspor laporan Anda.' : 'Tinjau aktivitas anggota per periode, bandingkan tim, dan ekspor laporan.'
       "
-      ><button
+      ><span class="scope-tag"><Icon name="teams" :size="16" />{{ scopeName }}</span><button
         class="button primary"
         :disabled="loading || !!error"
         @click="download"
