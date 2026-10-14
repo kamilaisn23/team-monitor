@@ -2,18 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { wibMonthRange, wibDateRange } from "@/lib/wib";
-import { isAdminRole } from "@/lib/session";
+import { canReadWorkspace, memberReadScope } from "@/lib/read-access";
 
 export async function GET(req: NextRequest) {
     const session = await auth();
     if (!session)
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const role = session.user.role;
-    if (
-        !isAdminRole(session) &&
-        role !== "MANAGER" &&
-        role !== "DEVELOPER"
-    ) {
+    if (!canReadWorkspace(session)) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -83,6 +78,7 @@ export async function GET(req: NextRequest) {
 
     const members = await prisma.teamMember.findMany({
         where: {
+            ...memberReadScope(session),
             role: { not: "UNASSIGNED" },
             ...(nameFilter
                 ? {

@@ -75,6 +75,8 @@ router.beforeEach(async (to, from) => {
     return to.path === "/login" && workspace.session ? "/dashboard" : true;
   if (!workspace.session) return "/login";
   const user = workspace.session.user;
+  if (!user.isSuperadmin && user.role === 'DEVELOPER' && to.path.startsWith('/members/') && to.params.id !== user.id)
+    return user.id ? '/members/' + user.id : '/dashboard';
   if (
     user.role === "UNASSIGNED" &&
     !user.isSuperadmin &&

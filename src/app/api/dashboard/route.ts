@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getWorkloadLevel, getWorkloadThresholds } from "@/lib/settings";
-import { isAdminRole } from "@/lib/session";
+import { canReadWorkspace, memberReadScope } from "@/lib/read-access";
 import { dashboardIssue, dashboardIssueSelect } from "@/lib/dashboard-issues";
 import { dashboardTrends, WEEK_MS } from "@/lib/dashboard-trends";
 
@@ -13,12 +13,7 @@ export async function GET(req: NextRequest) {
     const session = await auth();
     if (!session)
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const role = session.user.role;
-    if (
-        !isAdminRole(session) &&
-        role !== "MANAGER" &&
-        role !== "DEVELOPER"
-    ) {
+    if (!canReadWorkspace(session)) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -54,6 +49,7 @@ export async function GET(req: NextRequest) {
     };
 
     const memberWhere = {
+        ...memberReadScope(session),
         role: { not: "UNASSIGNED" as const },
         ...(teamId ? { teams: { some: { teamId } } } : {}),
         ...(activeParam !== null ? { isActive: activeParam === "true" } : {}),

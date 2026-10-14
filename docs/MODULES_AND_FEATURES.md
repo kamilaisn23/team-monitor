@@ -38,9 +38,9 @@
 |-------|:---:|:---:|:---:|:---:|:---:|
 | `/login` | Yes | Redirect | Redirect | Redirect | Redirect |
 | `/pending` | Yes | — | — | — | — |
-| `/dashboard` | — | Yes | Yes | Yes | Yes |
+| `/dashboard` | — | Own data | Yes | Yes | Yes |
 | `/members/[id]` | — | Own only | Yes | Yes | Yes |
-| `/reports` | — | Yes | Yes | Yes | Yes |
+| `/reports` | — | Own data / CSV | Yes | Yes | Yes |
 | `/admin/members` | — | — | — | Yes | Yes |
 | `/admin/teams` | — | — | — | Yes | Yes |
 | `/admin/repositories` | — | — | — | Yes | Yes |

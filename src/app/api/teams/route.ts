@@ -3,13 +3,16 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { isKerjabaikSyncEnabled } from '@/lib/kerjabaik-flag'
 import { isAdminRole } from '@/lib/session'
+import { canReadWorkspace, isSelfScoped, teamReadScope } from '@/lib/read-access'
 
 export async function GET() {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!canReadWorkspace(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const teams = await prisma.team.findMany({
-    include: { _count: { select: { members: true } } },
+    where: teamReadScope(session),
+    include: { _count: { select: { members: isSelfScoped(session) ? { where: { teamMemberId: session.user.id } } : true } } },
     orderBy: { name: 'asc' },
   })
 

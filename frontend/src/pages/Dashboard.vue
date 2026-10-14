@@ -14,7 +14,7 @@ import SavedFilters from "../components/SavedFilters.vue";
 import AttentionCenter from "../components/AttentionCenter.vue";
 import type { DashboardFilters } from "../dashboard-filters";
 import { api, query } from "../api";
-import { workspace } from "../state";
+import { workspace, isDeveloper } from "../state";
 import { sectionHref } from "../router";
 import {
   levelLabels,
@@ -177,8 +177,8 @@ const scopeName = computed(
 <template>
   <div class="page-content">
     <PageHeading
-      title="Tim hebat, kerja terarah"
-      description="Lihat kapasitas tim, pahami beban kerja, dan tentukan prioritas berikutnya."
+      :title="isDeveloper ? 'Pekerjaan Anda, lebih terarah' : 'Tim hebat, kerja terarah'"
+      :description="isDeveloper ? 'Dashboard pribadi berdasarkan pekerjaan dan penugasan Anda.' : 'Lihat kapasitas tim, pahami beban kerja, dan tentukan prioritas berikutnya.'"
       ><span class="scope-tag"
         ><Icon name="teams" :size="16" />{{ scopeName }}</span
       ><button
@@ -191,6 +191,7 @@ const scopeName = computed(
         /></button
     ></PageHeading>
     <SavedFilters :filters="currentFilters" @apply="applyFilters" />
+    <p v-if="isDeveloper" class="info-banner"><Icon name="shield" :size="17" />Anda hanya melihat data pribadi. Filter tim tidak memperluas akses ke pekerjaan anggota lain.</p>
     <div v-if="error" class="error-banner" role="alert">
       <Icon name="alert" />{{ error }}<button @click="load">Coba lagi</button>
     </div>

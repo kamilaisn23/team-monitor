@@ -7,7 +7,7 @@ import Avatar from "../components/Avatar.vue";
 import Icon from "../components/Icon.vue";
 import Pager from "../components/Pager.vue";
 import MemberDialog from "../components/MemberDialog.vue";
-import { workspace } from "../state";
+import { workspace, isDeveloper } from "../state";
 import { api, query, exportCsv } from "../api";
 import {
   roleLabels,
@@ -175,7 +175,7 @@ function download() {
       :description="
         workspace.preview
           ? 'Snapshot beban saat ini untuk menjelajahi desain laporan.'
-          : 'Tinjau aktivitas anggota per periode, bandingkan tim, dan ekspor laporan.'
+          : isDeveloper ? 'Tinjau aktivitas pribadi per periode dan ekspor laporan Anda.' : 'Tinjau aktivitas anggota per periode, bandingkan tim, dan ekspor laporan.'
       "
       ><button
         class="button primary"

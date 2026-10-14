@@ -2,14 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { wibDaysAgo } from '@/lib/wib'
-import { isAdminRole } from '@/lib/session'
+import { canReadMember } from '@/lib/read-access'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await params
-  const role = session.user.role
-  if (!isAdminRole(session) && role !== 'MANAGER' && session.user.id !== id) {
+  if (!canReadMember(session, id)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

@@ -573,6 +573,22 @@ const resolvedParams = new URL(resolvedRequest.url, "http://localhost")
   .searchParams;
 assert.equal(resolvedParams.get("state"), "closed");
 assert.equal(resolvedParams.get("days"), "90");
+workspace.session.user.role = 'DEVELOPER';
+workspace.session.user.isSuperadmin = false;
+workspace.session.user.id = 'm1';
+const beforeOtherProfile = requests.length;
+await router.push('/members/other-member');
+await settle();
+assert.equal(router.currentRoute.value.path, '/members/m1', 'Developer routes to own profile');
+assert.ok(!requests.slice(beforeOtherProfile).some(request => request.url.includes('/api/members/other-member')));
+await router.push('/dashboard');
+await settle();
+assert.ok(document.querySelector('.info-banner').textContent.includes('data pribadi'));
+assert.equal(document.querySelector('.sync-button'), null);
+assert.equal(document.querySelector('[aria-label="Buka pusat perhatian tim"]'), null);
+await router.push('/reports');
+await settle();
+assert.ok(document.querySelector('.page-heading').textContent.includes('laporan Anda'));
 app.unmount();
 dom.window.close();
 console.log(

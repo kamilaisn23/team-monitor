@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { canReadWorkspace, isSelfScoped, issueReadScope, teamReadScope } from '@/lib/read-access'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!canReadWorkspace(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { searchParams } = req.nextUrl
   const platform = searchParams.get('platform')
@@ -13,11 +15,12 @@ export async function GET(req: NextRequest) {
 
   const repos = await prisma.repository.findMany({
     where: {
+      ...(isSelfScoped(session) ? { issues: { some: issueReadScope(session) } } : {}),
       ...(platform ? { platform: platform.toUpperCase() as 'GITHUB' | 'GITLAB' } : {}),
       ...(ignoredParam !== null ? { ignored: ignoredParam === 'true' } : {}),
       ...(teamId ? { teams: { some: { teamId } } } : {}),
     },
-    include: { teams: { include: { team: { select: { id: true, name: true } } } } },
+    include: { teams: { where: { team: teamReadScope(session) }, include: { team: { select: { id: true, name: true } } } } },
     orderBy: [{ platform: 'asc' }, { name: 'asc' }],
   })
 

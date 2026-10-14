@@ -31,6 +31,7 @@ export const canManage = computed(
   () =>
     isAdmin.value && !workspace.config.kerjabaikEnabled && !workspace.preview,
 );
+export const isDeveloper = computed(() => !workspace.preview && !isAdmin.value && workspace.session?.user.role === 'DEVELOPER');
 export const canSettings = computed(
   () => workspace.preview || !!workspace.session?.user.isSuperadmin,
 );

@@ -241,7 +241,7 @@ The frontend is entirely Vue. Next.js and its React runtime remain backend depen
 | **Superadmin** | Full access — hardcoded via `SUPERADMIN_GITHUB_USERNAME` env var, not stored in DB |
 | **Admin** | Admin pages and manual synchronization; Settings remains superadmin-only |
 | **Manager** | Dashboard, reports, member profiles |
-| **Developer** | Own profile only |
+| **Developer** | Own profile, personal dashboard and personal reports/CSV; only own memberships and repositories linked to own issues are available |
 | **Unassigned** | Pending screen only — superadmin must assign a role |
 
 ---

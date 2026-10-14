@@ -54,6 +54,7 @@ globalThis.__dashboardSmoke = {
       findMany: async ({ where }) =>
         members.filter(
           (m) =>
+            (!where.id || m.id === where.id) &&
             (!where.teams ||
               m.teams.some((t) => t.team.id === where.teams.some.teamId)) &&
             (where.isActive === undefined || m.isActive === where.isActive) &&
@@ -218,6 +219,13 @@ assert.equal(
   10,
 );
 assert.equal((await get("page=Infinity&limit=Infinity")).body.data.length, 10);
+session = { user: { role: 'DEVELOPER', id: 'm0', isSuperadmin: false } };
+assert.equal((await get()).body.total, 1);
+assert.deepEqual((await get()).body.data.map(member => member.memberId), ['m0']);
+assert.equal((await get('teamId=b')).body.summary.memberCount, 0, 'Team query cannot broaden developer scope');
+assert.equal((await get('name=Member%2001')).body.total, 0);
+session.user.id = undefined;
+assert.equal((await get()).status, 403);
 session = null;
 assert.equal((await get()).status, 401);
 assert.equal((await get("issueView=stale")).status, 401);
