@@ -30,6 +30,7 @@
     ]
   },
   "include": [
+    ".railway/**/*.ts",
     "next-env.d.ts",
     "src/**/*.ts",
     "src/**/*.tsx",
