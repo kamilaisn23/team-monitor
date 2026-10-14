@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { wibMonthRange, wibDateRange } from "@/lib/wib";
+import { parseReportQuery } from "@/lib/report-query";
+import { InputError } from "@/lib/input-validation";
 import { canReadWorkspace, memberReadScope } from "@/lib/read-access";
 
 export async function GET(req: NextRequest) {
@@ -12,62 +13,10 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { searchParams } = req.nextUrl;
-    const month = searchParams.get("month");
-    const startParam = searchParams.get("start");
-    const endParam = searchParams.get("end");
-
-    let rangeLabel: string;
-    let start: Date;
-    let end: Date;
-
-    if (startParam && endParam) {
-        if (new Date(startParam) > new Date(endParam)) {
-            return NextResponse.json(
-                { error: "start must be before end" },
-                { status: 400 },
-            );
-        }
-        ({ start, end } = wibDateRange(startParam, endParam));
-        rangeLabel = `${startParam}_to_${endParam}`;
-    } else if (month) {
-        ({ start, end } = wibMonthRange(month));
-        rangeLabel = month;
-    } else {
-        return NextResponse.json(
-            { error: "month or start+end is required" },
-            { status: 400 },
-        );
-    }
-
-    const repositoryId = searchParams.get("repositoryId");
-    const teamId = searchParams.get("teamId");
-    const nameFilter = searchParams.get("name");
-    const platform = searchParams.get("platform") || "all";
-    const groupBy = searchParams.get("groupBy"); // "team" or null
-    const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
-    const limit = Math.min(
-        100,
-        Math.max(1, parseInt(searchParams.get("limit") ?? "10", 10)),
-    );
-    const skip = (page - 1) * limit;
-
-    const validSortCols = [
-        "name",
-        "role",
-        "issuesCreated",
-        "issuesAssigned",
-        "issuesResolved",
-        "issuesStillOpen",
-    ] as const;
-    type SortCol = (typeof validSortCols)[number];
-    const rawSort = searchParams.get("sort") ?? "issuesResolved";
-    const sortCol: SortCol = (validSortCols as readonly string[]).includes(
-        rawSort,
-    )
-        ? (rawSort as SortCol)
-        : "issuesResolved";
-    const sortDir = searchParams.get("sortDir") === "asc" ? "asc" : "desc";
+    let query: ReturnType<typeof parseReportQuery>;
+    try { query = parseReportQuery(req.nextUrl.searchParams); }
+    catch (error) { return NextResponse.json({ error: error instanceof InputError ? error.message : "Invalid report parameters" }, { status: 400 }); }
+    const { rangeLabel, start, end, repositoryId, teamId, nameFilter, platform, groupBy, skip, limit, sortCol, sortDir } = query;
 
     const repoFilter = {
         ignored: false,

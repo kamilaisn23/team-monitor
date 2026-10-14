@@ -4,13 +4,17 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdminRole } from "@/lib/session";
 import { parseFollowUp, validFollowUpInput, type FollowUp } from "@/types/attention";
+import { readJsonObject } from "@/lib/json-body";
+import { onlyKeys } from "@/lib/input-validation";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ issueId: string }> }) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!isAdminRole(session) && session.user.role !== "MANAGER") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  const body: unknown = await req.json().catch(() => null);
-  if (!validFollowUpInput(body)) return NextResponse.json({ error: "Status, catatan (maksimal 2.000 karakter), atau penanggung jawab tidak valid." }, { status: 400 });
+  const parsed = await readJsonObject(req);
+  if (!parsed.ok) return parsed.response;
+  const body = parsed.value;
+  if (!onlyKeys(body, ['status', 'note', 'ownerId', 'expectedRevision']) || !validFollowUpInput(body)) return NextResponse.json({ error: "Status, catatan (maksimal 2.000 karakter), atau penanggung jawab tidak valid." }, { status: 400 });
   const { issueId } = await params;
   const issue = await prisma.issue.findFirst({ where: { id: issueId, state: "OPEN", repository: { ignored: false } }, select: { id: true } });
   if (!issue) return NextResponse.json({ error: "Isu tidak tersedia atau sudah ditutup. Muat ulang pusat perhatian." }, { status: 404 });

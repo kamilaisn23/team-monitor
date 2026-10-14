@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { wibMonthRange, wibDateRange } from '@/lib/wib'
+import { parseReportQuery } from '@/lib/report-query'
+import { InputError } from '@/lib/input-validation'
 import { canReadWorkspace, memberReadScope } from '@/lib/read-access'
 import { serializeCsv } from '@/lib/csv'
 
@@ -12,32 +13,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { searchParams } = req.nextUrl
-  const month = searchParams.get('month')
-  const startParam = searchParams.get('start')
-  const endParam = searchParams.get('end')
-
-  let rangeLabel: string
-  let start: Date
-  let end: Date
-
-  if (startParam && endParam) {
-    if (new Date(startParam) > new Date(endParam)) {
-      return NextResponse.json({ error: 'start must be before end' }, { status: 400 })
-    }
-    ;({ start, end } = wibDateRange(startParam, endParam))
-    rangeLabel = `${startParam}_to_${endParam}`
-  } else if (month) {
-    ;({ start, end } = wibMonthRange(month))
-    rangeLabel = month
-  } else {
-    return NextResponse.json({ error: 'month or start+end is required' }, { status: 400 })
-  }
-
-  const repositoryId = searchParams.get('repositoryId')
-  const teamId = searchParams.get('teamId')
-  const nameFilter = searchParams.get('name')
-  const platform = searchParams.get('platform') || 'all'
+  let query: ReturnType<typeof parseReportQuery>
+  try { query = parseReportQuery(req.nextUrl.searchParams) }
+  catch (error) { return NextResponse.json({ error: error instanceof InputError ? error.message : 'Invalid report parameters' }, { status: 400 }) }
+  const { start, end, rangeLabel, repositoryId, teamId, nameFilter, platform } = query
 
   const repoFilter = {
     ignored: false,

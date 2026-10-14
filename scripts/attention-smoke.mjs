@@ -94,7 +94,8 @@ const get = async (query = "") => {
 };
 const draft = { status: "following_up", note: "  Discuss priorities  ", ownerId: "m1", expectedRevision: null };
 const patch = async (id = "stale", body = draft) => {
-  const response = await PATCH({ json: async () => body }, { params: Promise.resolve({ issueId: id }) });
+  const request = new Request('http://localhost/api/dashboard/attention/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const response = await PATCH(request, { params: Promise.resolve({ issueId: id }) });
   return { status: response.status, body: await response.json() };
 };
 const initial = (await get()).body;

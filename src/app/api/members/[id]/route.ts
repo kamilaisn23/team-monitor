@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { isKerjabaikSyncEnabled } from '@/lib/kerjabaik-flag'
 import { isAdminRole } from '@/lib/session'
 import { canReadMember } from '@/lib/read-access'
+import { readJsonObject } from '@/lib/json-body'
+import { validMemberBody } from '@/lib/input-validation'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -44,7 +46,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const { id } = await params
-  const body = await req.json() as { name?: string; usernameGithub?: string; usernameGitlab?: string; role?: string; isActive?: boolean }
+  const parsed = await readJsonObject(req)
+  if (!parsed.ok) return parsed.response
+  const body = parsed.value
+  if (!validMemberBody(body)) return NextResponse.json({ error: 'Invalid member fields, types or lengths' }, { status: 400 })
 
   const existing = await prisma.teamMember.findUnique({ where: { id } })
   if (!existing) return NextResponse.json({ error: 'Member not found' }, { status: 404 })
@@ -62,7 +67,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(body.usernameGithub !== undefined ? { usernameGithub: body.usernameGithub?.trim() || null } : {}),
         ...(body.usernameGitlab !== undefined ? { usernameGitlab: body.usernameGitlab?.trim() || null } : {}),
         ...(body.role !== undefined ? { role: body.role as 'ADMIN' | 'MANAGER' | 'DEVELOPER' | 'UNASSIGNED' } : {}),
-        ...(body.isActive !== undefined ? { isActive: Boolean(body.isActive) } : {}),
+        ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
       },
       include: { teams: { include: { team: { select: { id: true, name: true } } } } },
     })

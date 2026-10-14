@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { isKerjabaikSyncEnabled } from '@/lib/kerjabaik-flag'
 import { isAdminRole } from '@/lib/session'
 import { canReadWorkspace, isSelfScoped, teamReadScope } from '@/lib/read-access'
+import { readJsonObject } from '@/lib/json-body'
+import { validTeamBody } from '@/lib/input-validation'
 
 export async function GET() {
   const session = await auth()
@@ -37,7 +39,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'managed_in_kerjabaik' }, { status: 409 })
   }
 
-  const body = await req.json() as { name?: string }
+  const parsed = await readJsonObject(req)
+  if (!parsed.ok) return parsed.response
+  const body = parsed.value
+  if (!validTeamBody(body)) return NextResponse.json({ error: 'name must be 1–200 characters without controls' }, { status: 400 })
   if (!body.name?.trim()) return NextResponse.json({ error: 'name is required' }, { status: 400 })
 
   try {

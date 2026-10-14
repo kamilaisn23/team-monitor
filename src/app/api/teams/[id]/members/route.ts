@@ -3,6 +3,8 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { isKerjabaikSyncEnabled } from '@/lib/kerjabaik-flag'
 import { isAdminRole } from '@/lib/session'
+import { readJsonObject } from '@/lib/json-body'
+import { onlyKeys, validEntityId } from '@/lib/input-validation'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -14,8 +16,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const { id: teamId } = await params
-  const body = await req.json() as { memberId?: string }
-  if (!body.memberId) return NextResponse.json({ error: 'memberId is required' }, { status: 400 })
+  const parsed = await readJsonObject(req)
+  if (!parsed.ok) return parsed.response
+  const body = parsed.value
+  if (!onlyKeys(body, ['memberId']) || !validEntityId(body.memberId)) return NextResponse.json({ error: 'A valid memberId is required' }, { status: 400 })
 
   const [team, member] = await Promise.all([
     prisma.team.findUnique({ where: { id: teamId } }),
