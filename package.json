@@ -16,7 +16,8 @@
         "typecheck": "vue-tsc --noEmit -p frontend/tsconfig.json && tsc --noEmit",
         "test": "node scripts/github-smoke.mjs && node scripts/preview-smoke.mjs && node scripts/dashboard-smoke.mjs && node scripts/attention-smoke.mjs && node scripts/sync-access-smoke.mjs && node scripts/sync-scheduler-smoke.mjs && node scripts/csv-smoke.mjs && node scripts/read-access-smoke.mjs && node scripts/validation-smoke.mjs && node scripts/member-issues-smoke.mjs && node scripts/vue-smoke.mjs",
         "postinstall": "prisma generate",
-        "test:sync-db": "node scripts/sync-db-smoke.mjs"
+        "test:sync-db": "node scripts/sync-db-smoke.mjs",
+        "test:migrations": "node scripts/migrations-smoke.mjs"
     },
     "dependencies": {
         "@auth/prisma-adapter": "^2.7.4",
