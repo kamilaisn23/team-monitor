@@ -12,7 +12,8 @@ Issue dikerjakan berurutan dan ditutup setelah kode dipublikasikan, pemeriksaan 
 | #4 | Selesai dan ditutup | Filter tim laporan/CSV konsisten; commit e1ef827; Railway 96f5b27e-3398-4193-9cf4-960635348b46 SUCCESS. |
 | #5 | Selesai dan ditutup | Serializer CSV bersama; commit 785210f; Railway 87410f84-f62a-4926-af8c-25c6466d2613 SUCCESS. |
 | #6 | Selesai dan ditutup | Validasi laporan/JSON/CRUD; commit af646ad; Railway ccb41947-0e22-4de7-bc19-8530d562ea92 SUCCESS. |
-| #7 | Implementasi selesai; verifikasi deployment | Partial IaC web diterapkan; tidak ada penghapusan resource/variabel. |
-| #8–#18 | Menunggu giliran | Daftar dan tautan lengkap: GITHUB_ISSUES.md. |
+| #7 | Selesai dan ditutup | Partial IaC web tanpa penghapusan resource/variabel; commit 3a51fbf; Railway 562882ef-f322-4b0a-9097-76b7a6886c88 SUCCESS. |
+| #8 | Sedang dikerjakan | Scheduler produksi, pengunci lintas proses, kesehatan per sumber dan jadwal WIB. |
+| #9–#18 | Menunggu giliran | Daftar dan tautan lengkap: GITHUB_ISSUES.md. |
 
 Perbaikan #1 sudah diuji dengan matriks role, pencegahan side effect sebelum worker dimuat, status/SSE, visibilitas tombol, cooldown, dan JSON 401/403. Preview publik tetap tersedia. Login live belum diuji karena #2 ditunda.

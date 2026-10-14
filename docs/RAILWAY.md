@@ -6,7 +6,7 @@ The existing Dockerfile builds the Next.js standalone server and sync-worker bun
 
 Set `DATABASE_URL` to the Railway reference `${{Postgres.DATABASE_URL}}`, provide a generated `AUTH_SECRET`, set `AUTH_TRUST_HOST=true`, and set `AUTH_URL` and `NEXTAUTH_URL` to the public service URL. Secret values belong in Railway variables, never in source control.
 
-The container's existing startup command uses `prisma db push --skip-generate` to initialize the schema before starting the standalone server. The current migration history does not contain an initial schema migration; do not replace this with `prisma migrate deploy` on an empty database until the migration history has a baseline. Schema synchronization runs without accepting data loss.
+The container's existing startup command uses `prisma db push --skip-generate` to initialize the schema before starting a supervisor for the standalone server and sync scheduler. The current migration history does not contain an initial schema migration; do not replace this with `prisma migrate deploy` on an empty database until the migration history has a baseline. Schema synchronization runs without accepting data loss. See [scheduler configuration and locking](SCHEDULER.md).
 
 The public design preview uses fictional data and does not require OAuth. For real sign-in, configure `AUTH_GITHUB_ID` and `AUTH_GITHUB_SECRET` from a GitHub OAuth App and set its callback URL to `<service-url>/api/auth/callback/github`. Use `SUPERADMIN_GITHUB_USERNAME` for the administrator account. Configure GitHub/GitLab/Kerjabaik integration variables before syncing actual records.
 
@@ -41,6 +41,8 @@ railway config apply --plan iac-plan.json --yes
 ```
 
 Review the entire plan first. Never approve resource/volume/variable deletion or use `--confirm-destructive` for this migration. Do not commit generated plans: keep them outside the repository. Run a second plan after applying; it must report no changes. CLI source uploads still require `railway up`.
+
+To roll back application code, redeploy a previously verified Railway deployment while leaving the IaC partial in place. To roll back IaC settings, restore the prior `.railway/railway.ts` revision, review its plan, and apply it against the same project/environment. Do not recreate services or revert to the retired Config as Code binding. Database rollback is a separate procedure.
 
 On Windows, the npm CLI shim can prevent the SDK from checking the CLI version. Point its executable lookup to the installed native binary for this shell:
 
