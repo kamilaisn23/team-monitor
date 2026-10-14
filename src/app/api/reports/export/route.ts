@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { wibMonthRange, wibDateRange } from '@/lib/wib'
 import { canReadWorkspace, memberReadScope } from '@/lib/read-access'
+import { serializeCsv } from '@/lib/csv'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -93,13 +94,14 @@ export async function GET(req: NextRequest) {
     stillOpenMap.get(member.id) ?? 0,
   ])
 
-  const header = 'Name,Role,Issues Created,Issues Assigned,Issues Resolved,Issues Still Open'
-  const csvRows = rows.map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))
-  const csv = [header, ...csvRows].join('\n')
+  const csv = serializeCsv([
+    ['Name', 'Role', 'Issues Created', 'Issues Assigned', 'Issues Resolved', 'Issues Still Open'],
+    ...rows,
+  ])
 
   return new NextResponse(csv, {
     headers: {
-      'Content-Type': 'text/csv',
+      'Content-Type': 'text/csv; charset=utf-8',
       'Content-Disposition': `attachment; filename="report-${rangeLabel}.csv"`,
     },
   })

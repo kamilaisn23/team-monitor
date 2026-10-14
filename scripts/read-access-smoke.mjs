@@ -84,6 +84,9 @@ assert.deepEqual((await get('repos')).body.map(repo => repo.id), ['ra']);
 assert.equal((await get('repos', 'teamId=t2')).body.length, 0);
 assert.equal((await get('syncStatus')).body.lastSyncedAt, time.toISOString());
 assert.equal((await get('profile')).status, 200);
+members[0].name = '=1+2';
+assert.ok((await get('csv')).body.includes('"\t=1+2"'), 'Server export protects source text from formulas');
+members[0].name = 'Alpha Dev';
 for (const name of ['profile', 'stats', 'timeline', 'profileRepos']) assert.equal((await get(name, '', 'b')).status, 403);
 for (const badSession of [{ user: { role: 'UNASSIGNED', id: 'a', isSuperadmin: false } }, { user: { role: 'DEVELOPER', isSuperadmin: false } }, null]) {
   session = badSession;
