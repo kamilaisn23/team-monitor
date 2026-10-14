@@ -3,6 +3,7 @@ import { computed, ref, watch, onBeforeUnmount } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import Icon from "./components/Icon.vue";
 import Avatar from "./components/Avatar.vue";
+import TeamScopeSelect from "./components/TeamScopeSelect.vue";
 import { workspace, isAdmin, canSettings, notify, signOut } from "./state";
 import { api } from "./api";
 import { sectionHref } from "./router";
@@ -181,23 +182,11 @@ onBeforeUnmount(() => events?.close());
       </nav>
       <div class="scope-control">
         <label for="scope-team">CAKUPAN PEMANTAUAN</label>
-        <div>
-          <Icon name="filter" :size="17" /><select
-            id="scope-team"
-            v-model="workspace.teamId"
-            aria-label="Pilih cakupan tim"
-            @change="selectTeam"
-          >
-            <option value="">Seluruh tim</option>
-            <option
-              v-for="team in workspace.teams"
-              :key="team.id"
-              :value="team.id"
-            >
-              {{ team.name }}
-            </option>
-          </select>
-        </div>
+        <TeamScopeSelect
+          v-model="workspace.teamId"
+          :teams="workspace.teams"
+          @change="selectTeam"
+        />
         <p>
           {{
             selectedTeam
@@ -245,8 +234,10 @@ onBeforeUnmount(() => events?.close());
           class="sidebar-collapse"
           @click="sidebarCollapsed = !sidebarCollapsed"
           :aria-label="sidebarCollapsed ? 'Perluas sidebar' : 'Ringkas sidebar'"
+          :title="sidebarCollapsed ? 'Perluas sidebar' : 'Ringkas sidebar'"
+          :aria-expanded="!sidebarCollapsed"
         >
-          <Icon name="collapse" :size="18" /><span>Ringkas sidebar</span>
+          <Icon :name="sidebarCollapsed ? 'expand' : 'collapse'" :size="18" />
         </button>
         <div class="sidebar-footnote">
           <span class="tiny-logo">TM</span

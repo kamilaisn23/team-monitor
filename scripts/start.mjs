@@ -23,6 +23,8 @@ const server = spawn(process.execPath, [path.join(standalone, "server.js")], {
     ...process.env,
     HOSTNAME: "0.0.0.0",
     PORT: process.env.PORT || "3000",
+    SYNC_MANAGER_PATH: process.env.SYNC_MANAGER_PATH || path.join(root, "scripts-dist/sync-manager.js"),
+    SYNC_WORKER_PATH: process.env.SYNC_WORKER_PATH || path.join(root, "scripts-dist/sync-worker.js"),
   },
 });
 process.on("SIGINT", () => server.kill());

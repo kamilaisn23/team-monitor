@@ -6,6 +6,7 @@ node_modules/
 out/
 scripts-dist/
 public/vue/
+.local-docker/
 
 # Environment variables (injected at runtime)
 .env

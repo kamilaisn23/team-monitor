@@ -1,4 +1,5 @@
-import type { DashboardResponse, DashboardMember } from "../types/dashboard";
+import type { DashboardResponse, DashboardMember, DashboardIssue, DashboardIssueResponse } from "../types/dashboard";
+import { dashboardTrends } from "./dashboard-trends";
 
 // Deliberately fictional, browser-local data. No database or authenticated API access.
 export const previewTeams = [
@@ -62,6 +63,38 @@ export const previewIssues = previewMembers.flatMap((member, index) =>
 );
 
 export type PreviewIssue = (typeof previewIssues)[number];
+// Fictional completion history, scoped by the same members and repositories as open work.
+const previewCompletions = previewMembers.flatMap((member, index) =>
+  Array.from({ length: member.isActive ? 2 : 1 }, (_, n) => ({
+    memberId: member.memberId,
+    repository: previewRepositories[(index + n) % previewRepositories.length]!,
+    closedDaysAgo: n === 0 ? (index % 6) + 1 : 9,
+  })),
+);
+
+const previewReferenceTime = Date.now();
+function previewDashboardIssue(issue: PreviewIssue): DashboardIssue {
+  return {
+    id: issue.id,
+    title: issue.title,
+    url: "",
+    createdAt: new Date(previewReferenceTime - issue.ageDays * 86400000).toISOString(),
+    ageDays: issue.ageDays,
+    repository: issue.repository,
+    assignees: [{ memberId: issue.memberId, name: previewMembers.find((member) => member.memberId === issue.memberId)!.name }],
+  };
+}
+
+export function getPreviewDashboardIssues(params: URLSearchParams): DashboardIssueResponse {
+  const issues = getPreviewIssues(params)
+    .filter((issue) => params.get("issueView") !== "stale" || issue.ageDays > 30)
+    .sort((a, b) => b.ageDays - a.ageDays || a.id.localeCompare(b.id));
+  const rawPage = Number(params.get("issuePage"));
+  const rawLimit = Number(params.get("issueLimit"));
+  const page = Math.max(1, Number.isFinite(rawPage) ? Math.trunc(rawPage) || 1 : 1);
+  const limit = Math.min(100, Math.max(1, Number.isFinite(rawLimit) ? Math.trunc(rawLimit) || 20 : 20));
+  return { data: issues.slice((page - 1) * limit, page * limit).map(previewDashboardIssue), total: issues.length, page, limit };
+}
 export function getPreviewIssues(params: URLSearchParams) {
   const members = previewMembers.filter(
     (m) =>
@@ -125,6 +158,12 @@ export function getPreviewDashboard(
     totalOpenIssues: scopedIssues.length,
     highWorkload: distribution.high,
     staleIssues: scopedIssues.filter((i) => i.ageDays > 30).length,
+    resolvedLast7Days: previewCompletions.filter((issue) =>
+      issue.closedDaysAgo <= 7 &&
+      scope.some((member) => member.memberId === issue.memberId) &&
+      (!repoId || issue.repository.id === repoId) &&
+      (!platform || platform === "all" || issue.repository.platform === platform),
+    ).length,
     distribution,
   };
   const teamOverview = previewTeams
@@ -170,5 +209,21 @@ export function getPreviewDashboard(
     summary,
     thresholds: { lowMax: 3, mediumMax: 7, staleDays: 30 },
     teamOverview,
+    trends: dashboardTrends([
+      ...scopedIssues.map((issue) => ({
+        createdAt: new Date(previewReferenceTime - issue.ageDays * 86400000), closedAt: null,
+      })),
+      ...previewCompletions.filter((issue) =>
+        scope.some((member) => member.memberId === issue.memberId) &&
+        (!repoId || issue.repository.id === repoId) &&
+        (!platform || platform === "all" || issue.repository.platform === platform),
+      ).map((issue, index) => ({
+        createdAt: new Date(previewReferenceTime - (issue.closedDaysAgo + 4 + index % 12) * 86400000),
+        closedAt: new Date(previewReferenceTime - issue.closedDaysAgo * 86400000),
+      })),
+    ], new Date(previewReferenceTime)),
+    attentionIssues: scopedIssues.filter((issue) => issue.ageDays > 30)
+      .sort((a, b) => b.ageDays - a.ageDays || a.id.localeCompare(b.id))
+      .slice(0, 3).map(previewDashboardIssue),
   };
 }

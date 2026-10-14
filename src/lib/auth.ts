@@ -56,6 +56,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         async session({ session, token }) {
             session.user.role = token.role as AppRole;
             session.user.isSuperadmin = token.isSuperadmin as boolean;
+            session.user.githubLogin = token.login as string | undefined;
             if (token.memberId) session.user.id = token.memberId as string;
             return session;
         },

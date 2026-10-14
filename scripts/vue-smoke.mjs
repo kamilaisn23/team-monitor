@@ -47,6 +47,9 @@ HTMLDialogElement.prototype.close = function () {
 };
 const requests = [];
 let live = false;
+let failDashboardIssues = false;
+let failFollowUp = false;
+let liveFollowUp = { status: 'unreviewed', note: '', ownerId: null, revision: null, updatedAt: null, updatedBy: null };
 const liveTeams = [
   { id: "t1", name: "Product", memberCount: 1 },
   { id: "t2", name: "Platform", memberCount: 0 },
@@ -84,6 +87,12 @@ globalThis.fetch = async (url, options = {}) => {
     const pathname = String(url).split("?")[0];
     if (options.method === "DELETE") return new Response(null, { status: 204 });
     if (options.method && options.method !== "GET") {
+      if (pathname === '/api/dashboard/attention/live-issue') {
+        if (failFollowUp) return Response.json({ error: 'Tindak lanjut telah diubah pengguna lain.' }, { status: 409 });
+        const payload = JSON.parse(options.body);
+        liveFollowUp = { status: payload.status, note: payload.note, ownerId: payload.ownerId, revision: 'live-revision', updatedAt: new Date().toISOString(), updatedBy: 'Admin Test' };
+        return Response.json(liveFollowUp);
+      }
       if (pathname === "/api/settings")
         return Response.json(JSON.parse(options.body));
       if (pathname === "/api/members/m1")
@@ -132,6 +141,25 @@ globalThis.fetch = async (url, options = {}) => {
           issuesStillOpen: 0,
         },
       });
+    if (pathname === '/api/dashboard/attention') {
+      const params = new URL(String(url), 'http://localhost').searchParams;
+      const data = params.get('status') === 'all' || params.get('status') === liveFollowUp.status ? [{
+        id: 'live-issue', title: 'Live issue needing review', url: 'https://github.com/team/test/issues/1',
+        createdAt: new Date(Date.now() - 45 * 86400000).toISOString(), ageDays: 45,
+        repository: { id: 'r1', name: 'team/test', platform: 'github' }, assignees: [{ memberId: 'm1', name: 'Test Member' }],
+        reasons: ['stale'], followUp: liveFollowUp,
+      }] : [];
+      return Response.json({ data, total: data.length, page: 1, limit: 10, counts: { unreviewed: Number(liveFollowUp.status === 'unreviewed'), following_up: Number(liveFollowUp.status === 'following_up'), reviewed: Number(liveFollowUp.status === 'reviewed') }, owners: [{ id: 'm1', name: 'Test Member' }], staleDays: 30 });
+    }
+    if (pathname === "/api/dashboard" && new URL(String(url), 'http://localhost').searchParams.has('issueView')) {
+      if (failDashboardIssues) return Response.json({ error: 'Daftar isu gagal dimuat' }, { status: 503 });
+      return Response.json({ data: [{
+        id: 'live-issue', title: 'Live issue needing review', url: 'https://github.com/team/test/issues/1',
+        createdAt: new Date(Date.now() - 45 * 86400000).toISOString(), ageDays: 45,
+        repository: { id: 'r1', name: 'team/test', platform: 'github' },
+        assignees: [{ memberId: 'm1', name: 'Test Member' }],
+      }], total: 1, page: 1, limit: 20 });
+    }
     if (pathname === "/api/dashboard")
       return Response.json({
         data: [],
@@ -142,9 +170,11 @@ globalThis.fetch = async (url, options = {}) => {
           totalOpenIssues: 0,
           highWorkload: 0,
           staleIssues: 0,
+          resolvedLast7Days: 0,
           distribution: { low: 0, medium: 0, high: 0 },
         },
         thresholds: { lowMax: 3, mediumMax: 7, staleDays: 30 },
+        attentionIssues: [],
         teamOverview: [],
       });
   }
@@ -196,8 +226,13 @@ await router.push("/preview");
 await router.isReady();
 app.mount("#app");
 async function settle() {
-  await nextTick();
-  await new Promise((resolve) => setTimeout(resolve, 25));
+  // Drain microtasks and queued macrotasks (fetch mocks, router guards and
+  // page transitions) instead of sleeping on a fixed wall-clock delay, which
+  // races under CPU load and makes the suite flaky.
+  for (let i = 0; i < 8; i++) {
+    await nextTick();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
   await nextTick();
 }
 async function click(label) {
@@ -230,16 +265,82 @@ async function input(selector, value) {
   element.dispatchEvent(new Event("input", { bubbles: true }));
   await settle();
 }
+async function select(selector, value) {
+  const element = document.querySelector(selector);
+  assert.ok(element, selector);
+  element.value = value;
+  element.dispatchEvent(new Event('change', { bubbles: true }));
+  await settle();
+}
 await settle();
+assert.equal(document.querySelector('.sidebar-collapse').textContent.trim(), '');
+await click('Ringkas sidebar');
+assert.equal(document.querySelector('.sidebar-collapse').title, 'Perluas sidebar');
+await click('Perluas sidebar');
+assert.equal(document.querySelectorAll('.weekly-chart-column').length, 4);
+await click('Simpan filter dashboard');
+await input('dialog form input', 'Pantauan harian');
+document.querySelector('dialog form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+await settle();
+assert.ok(window.localStorage.getItem('team-monitor:dashboard-filters:v1:preview').includes('Pantauan harian'));
+await click('Lihat detail beban tinggi');
+assert.equal(document.querySelectorAll('.data-table tbody tr').length, 2);
+await click('Terapkan filter Pantauan harian');
+assert.equal(document.querySelectorAll('.data-table tbody tr').length, 10);
+await click('Buka pusat perhatian tim');
+assert.equal(document.querySelectorAll('.attention-card').length, 10);
+document.querySelector('dialog button[aria-label="Halaman berikutnya"]').click();
+await settle();
+assert.equal(document.querySelectorAll('.attention-card').length, 5);
+document.querySelector('dialog button[aria-label="Halaman sebelumnya"]').click();
+await settle();
+document.querySelector('.attention-follow-up-summary button').click();
+await settle();
+await input('.attention-editor textarea', 'Diskusikan prioritas pada rapat tim.');
+await select('.attention-editor select', 'reviewed');
+await select('.attention-editor .follow-up-fields label:nth-child(2) select', 'demo-member-1');
+await textClick('Simpan tindak lanjut');
+const previewRecord = JSON.parse(window.localStorage.getItem('team-monitor:preview-attention:v1'));
+assert.equal(Object.values(previewRecord)[0].status, 'reviewed');
+assert.equal(Object.values(previewRecord)[0].ownerId, 'demo-member-1');
+const reviewedTab = [...document.querySelectorAll('.attention-status-tabs button')].find((button) => button.textContent.includes('Sudah ditinjau'));
+reviewedTab.click(); await settle();
+assert.equal(document.querySelectorAll('.attention-card').length, 1);
+assert.ok(document.querySelector('.attention-note').textContent.includes('Diskusikan prioritas'));
+await click('Tutup detail');
+await click('Buka pusat perhatian tim');
+assert.ok([...document.querySelectorAll('.attention-status-tabs button')].find((button) => button.textContent.includes('Sudah ditinjau')).textContent.includes('1'));
+await select('.attention-reason select', 'unassigned');
+assert.equal(document.querySelectorAll('.attention-card').length, 4);
+await click('Tutup detail');
 assert.equal(document.querySelectorAll(".workspace-sidebar nav a").length, 6);
 assert.equal(document.querySelectorAll(".metric-card").length, 4);
+assert.ok(document.querySelector('.manager-brief').textContent.includes('12 isu selesai'));
+assert.equal(document.querySelectorAll('.brief-attention-item').length, 3);
+assert.ok(document.querySelector('.brief-attention-note').textContent.includes('bukan sejak aktivitas terakhir'));
+await click('Tinjau semua isu mengendap');
+assert.equal(document.querySelectorAll('dialog .issue-row').length, 11);
+document.querySelector('dialog .issue-row').click();
+await settle();
+assert.ok(document.querySelector('dialog').textContent.includes('Aditya'));
+await click('Tutup detail');
+await click('Tinjau anggota dengan beban tinggi');
+assert.equal(document.querySelectorAll('.data-table tbody tr').length, 2);
+await textClick('Semua');
+assert.equal(document.querySelectorAll('.data-table tbody tr').length, 10);
 assert.equal(document.querySelectorAll(".data-table tbody tr").length, 10);
 await click("Halaman berikutnya");
 assert.equal(document.querySelectorAll(".data-table tbody tr").length, 2);
 await click("Lihat detail beban tinggi");
 assert.equal(document.querySelectorAll(".data-table tbody tr").length, 2);
 await click("Lihat detail isu terbuka");
-assert.equal(document.querySelectorAll("dialog .issue-row").length, 51);
+assert.equal(document.querySelectorAll("dialog .issue-row").length, 20);
+document.querySelector('dialog button[aria-label="Halaman berikutnya"]').click();
+await settle();
+assert.equal(document.querySelectorAll("dialog .issue-row").length, 20);
+document.querySelector('dialog button[aria-label="Halaman berikutnya"]').click();
+await settle();
+assert.equal(document.querySelectorAll("dialog .issue-row").length, 11);
 await click("Tutup detail");
 await click("Lihat detail isu mengendap");
 assert.equal(document.querySelectorAll("dialog .issue-row").length, 11);
@@ -266,6 +367,7 @@ await click("Buka dasbor Product Engineering");
 assert.equal(workspace.teamId, "demo-product");
 assert.equal(router.currentRoute.value.fullPath, "/preview");
 assert.equal(document.querySelectorAll(".data-table tbody tr").length, 4);
+assert.ok(document.querySelector('[aria-label="Terapkan filter Pantauan harian"]'), 'Favorite persists when returning to dashboard');
 workspace.teamId = "";
 await navigate("repositories");
 assert.equal(document.querySelectorAll(".data-table tbody tr").length, 4);
@@ -395,6 +497,40 @@ assert.equal(
   "/dashboard",
   "Ordinary admin cannot open superadmin settings.",
 );
+assert.ok(document.querySelector('.manager-brief').textContent.includes('Belum ada anggota'));
+assert.equal(document.querySelector('[aria-label="Terapkan filter Pantauan harian"]'), null, 'Preview favorites are isolated from live accounts');
+await click('Buka pusat perhatian tim');
+document.querySelector('.attention-follow-up-summary button').click(); await settle();
+await input('.attention-editor textarea', 'Periksa bersama pemilik repositori.');
+await select('.attention-editor select', 'following_up');
+await select('.attention-editor .follow-up-fields label:nth-child(2) select', 'm1');
+failFollowUp = true;
+await textClick('Simpan tindak lanjut');
+assert.ok(document.querySelector('.attention-editor [role="alert"]').textContent.includes('diubah pengguna lain'));
+assert.equal(document.querySelector('.attention-editor textarea').value, 'Periksa bersama pemilik repositori.', 'Failed writes retain the draft');
+failFollowUp = false;
+await textClick('Simpan tindak lanjut');
+const followUpWrite = requests.filter((request) => request.method === 'PATCH' && request.url === '/api/dashboard/attention/live-issue').at(-1);
+assert.deepEqual(JSON.parse(followUpWrite.body), { status: 'following_up', note: 'Periksa bersama pemilik repositori.', ownerId: 'm1', expectedRevision: null });
+await click('Tutup detail');
+assert.equal(document.querySelector('[aria-label="Tinjau semua isu mengendap"]').disabled, true);
+await click('Lihat detail isu mengendap');
+assert.equal(document.querySelector('dialog .issue-row').tagName, 'A');
+assert.equal(document.querySelector('dialog .issue-row').href, 'https://github.com/team/test/issues/1');
+assert.equal(document.querySelector('dialog .issue-row').target, '_blank');
+assert.ok(document.querySelector('dialog .issue-row').rel.includes('noopener'));
+assert.ok(requests.some((request) => request.url.startsWith('/api/dashboard?') && request.url.includes('issueView=stale')));
+await click('Tutup detail');
+failDashboardIssues = true;
+await click('Lihat detail isu mengendap');
+assert.ok(document.querySelector('dialog [role="alert"]').textContent.includes('Daftar isu gagal dimuat'));
+assert.equal(document.querySelector('dialog .issue-row'), null);
+failDashboardIssues = false;
+document.querySelector('dialog [role="alert"] button').click();
+await settle();
+assert.equal(document.querySelector('dialog [role="alert"]'), null);
+assert.ok(document.querySelector('dialog .issue-row'));
+await click('Tutup detail');
 workspace.session.user.isSuperadmin = true;
 await router.push("/admin/settings");
 await settle();

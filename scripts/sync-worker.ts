@@ -23,7 +23,7 @@ async function main() {
       await runKerjabaikSync((event) => port.postMessage(event))
     } else if (source === 'github' || source === 'gitlab') {
       const { runSync } = await import('../src/lib/sync')
-      await runSync((event) => port.postMessage(event))
+      await runSync((event) => port.postMessage(event), source)
     } else {
       // 'all' (default): kerjabaik first, then github+gitlab
       const { runKerjabaikSync } = await import('../src/lib/sync-kerjabaik')

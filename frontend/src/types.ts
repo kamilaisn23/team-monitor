@@ -2,6 +2,8 @@ export type {
   DashboardMember,
   DashboardResponse,
   WorkloadLevel,
+  DashboardIssue,
+  DashboardIssueResponse,
 } from "../../src/types/dashboard";
 export interface Team {
   id: string;
@@ -33,7 +35,9 @@ export interface Repository {
 export interface Session {
   user: {
     id?: string;
+    githubLogin?: string;
     name?: string;
+    email?: string;
     image?: string;
     role: string;
     isSuperadmin: boolean;

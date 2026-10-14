@@ -127,7 +127,7 @@ export type SyncProgressEvent =
           durationSeconds: string;
       };
 
-export async function runSync(onProgress?: (event: SyncProgressEvent) => void) {
+export async function runSync(onProgress?: (event: SyncProgressEvent) => void, source: "github" | "gitlab" | "all" = "all") {
     const startTime = Date.now();
     repoCache.clear();
     console.log(`[sync] Starting sync at ${new Date().toISOString()}`);
@@ -177,7 +177,7 @@ export async function runSync(onProgress?: (event: SyncProgressEvent) => void) {
         let memberGitlab = 0;
         try {
             // Sync GitHub issues
-            if (member.usernameGithub) {
+            if (member.usernameGithub && source !== "gitlab") {
                 const issues = await fetchGithubIssues(member.usernameGithub);
                 for (const ghIssue of issues) {
                     const { name: repoName, url: repoUrl } =
@@ -237,7 +237,7 @@ export async function runSync(onProgress?: (event: SyncProgressEvent) => void) {
             }
 
             // Sync GitLab issues
-            if (member.usernameGitlab) {
+            if (member.usernameGitlab && source !== "github") {
                 const issues = await fetchGitlabIssues(member.usernameGitlab);
                 for (const glIssue of issues) {
                     const projectUrl = await getProjectUrl(glIssue.project_id);

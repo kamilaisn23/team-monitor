@@ -65,6 +65,18 @@ try {
         process.exit(1);
     }
     console.log("sync-manager.js bundled successfully");
+    await build({
+        entryPoints: [path.join(root, "scripts", "sync-cron.ts")],
+        bundle: true,
+        platform: "node",
+        target: "node22",
+        format: "cjs",
+        external: ["@prisma/client", "prisma"],
+        outfile: path.join(root, "scripts-dist", "sync-cron.js"),
+        logLevel: "info",
+        plugins: [aliasAtPlugin],
+    });
+    console.log("sync-cron.js bundled successfully");
 } catch (err) {
     console.error("Build failed:");
     if (err && typeof err === "object" && "errors" in err) {

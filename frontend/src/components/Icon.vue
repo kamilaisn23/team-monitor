@@ -40,6 +40,9 @@ import {
   Target,
   CircleDot,
   PanelLeftClose,
+  PanelLeftOpen,
+  Bookmark,
+  Info,
 } from "@lucide/vue";
 const props = withDefaults(defineProps<{ name: string; size?: number }>(), {
   size: 20,
@@ -84,6 +87,9 @@ const icons: Record<string, typeof LayoutDashboard> = {
   target: Target,
   dot: CircleDot,
   collapse: PanelLeftClose,
+  expand: PanelLeftOpen,
+  bookmark: Bookmark,
+  info: Info,
 };
 const component = computed(() => icons[props.name] || LayoutDashboard);
 </script>
