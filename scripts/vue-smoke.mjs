@@ -274,6 +274,7 @@ async function select(selector, value) {
 }
 await settle();
 assert.equal(document.querySelector('.sidebar-collapse').textContent.trim(), '');
+assert.equal(document.querySelector('.sync-button').disabled, true, 'Preview sync remains disabled');
 await click('Ringkas sidebar');
 assert.equal(document.querySelector('.sidebar-collapse').title, 'Perluas sidebar');
 await click('Perluas sidebar');
@@ -498,6 +499,14 @@ assert.equal(
   "Ordinary admin cannot open superadmin settings.",
 );
 assert.ok(document.querySelector('.manager-brief').textContent.includes('Belum ada anggota'));
+assert.ok(document.querySelector('.sync-button'), 'Admin has the manual sync control');
+for (const role of ['MANAGER', 'DEVELOPER', 'UNASSIGNED']) {
+  workspace.session.user.role = role;
+  await settle();
+  assert.equal(document.querySelector('.sync-button'), null, role + ' cannot see the manual sync control');
+}
+workspace.session.user.role = 'ADMIN';
+await settle();
 assert.equal(document.querySelector('[aria-label="Terapkan filter Pantauan harian"]'), null, 'Preview favorites are isolated from live accounts');
 await click('Buka pusat perhatian tim');
 document.querySelector('.attention-follow-up-summary button').click(); await settle();

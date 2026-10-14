@@ -1,4 +1,6 @@
 import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { isAdminRole } from "@/lib/session";
 import type { SyncJob } from "@/lib/sync-manager";
 
 // sync-manager is loaded at runtime from a pre-compiled CJS bundle (scripts-dist/sync-manager.js),
@@ -21,31 +23,27 @@ const VALID_SOURCES = new Set(["kerjabaik", "github", "gitlab", "all"])
 
 export async function POST(req: Request) {
     const session = await auth();
-    if (!session)
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-            status: 401,
-        });
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!isAdminRole(session)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { searchParams } = new URL(req.url)
     const rawSource = searchParams.get("source") ?? "all"
-    const source = VALID_SOURCES.has(rawSource) ? rawSource : "all"
+    if (!VALID_SOURCES.has(rawSource)) return NextResponse.json({ error: "Invalid sync source" }, { status: 400 });
+    const source = rawSource;
 
     const { createSyncJob, isJobRunning, getCooldownSecondsRemaining } = getSyncManager();
 
     if (isJobRunning()) {
-        return new Response(
-            JSON.stringify({ error: "A sync is already in progress" }),
-            { status: 409 },
-        );
+        return NextResponse.json({ error: "A sync is already in progress" }, { status: 409 });
     }
 
     const cooldownRemaining = getCooldownSecondsRemaining();
     if (cooldownRemaining > 0) {
-        return new Response(
-            JSON.stringify({
+        return NextResponse.json(
+            {
                 error: "Sync cooldown active. Please wait before syncing again.",
                 retryAfter: cooldownRemaining,
-            }),
+            },
             {
                 status: 429,
                 headers: { "Retry-After": String(cooldownRemaining) },
@@ -54,31 +52,22 @@ export async function POST(req: Request) {
     }
 
     const jobId = createSyncJob(source);
-    return new Response(JSON.stringify({ jobId, source }), {
-        status: 202,
-        headers: { "Content-Type": "application/json" },
-    });
+    return NextResponse.json({ jobId, source }, { status: 202 });
 }
 
 export async function GET(req: Request) {
     const session = await auth();
-    if (!session)
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-            status: 401,
-        });
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!isAdminRole(session)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const { searchParams } = new URL(req.url);
     const jobId = searchParams.get("jobId");
     if (!jobId) {
         const { isJobRunning, getCooldownSecondsRemaining } = getSyncManager();
-        return new Response(
-            JSON.stringify({
+        return NextResponse.json(
+            {
                 running: isJobRunning(),
                 cooldownSecondsRemaining: getCooldownSecondsRemaining(),
-            }),
-            {
-                status: 200,
-                headers: { "Content-Type": "application/json" },
             },
         );
     }
@@ -86,9 +75,7 @@ export async function GET(req: Request) {
     const { getJob } = getSyncManager();
     const job = getJob(jobId);
     if (!job)
-        return new Response(JSON.stringify({ error: "Job not found" }), {
-            status: 404,
-        });
+        return NextResponse.json({ error: "Job not found" }, { status: 404 });
 
     const encoder = new TextEncoder();
 

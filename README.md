@@ -239,6 +239,7 @@ The frontend is entirely Vue. Next.js and its React runtime remain backend depen
 | Role | Access |
 |---|---|
 | **Superadmin** | Full access — hardcoded via `SUPERADMIN_GITHUB_USERNAME` env var, not stored in DB |
+| **Admin** | Admin pages and manual synchronization; Settings remains superadmin-only |
 | **Manager** | Dashboard, reports, member profiles |
 | **Developer** | Own profile only |
 | **Unassigned** | Pending screen only — superadmin must assign a role |
@@ -249,7 +250,7 @@ The frontend is entirely Vue. Next.js and its React runtime remain backend depen
 
 - GitHub/GitLab default schedule: daily at 02:00 WIB (`SYNC_CRON_SCHEDULE=0 19 * * *` with a UTC cron host). The separate cron process/container must be running for scheduled jobs.
 - Kerjabaik defaults to hourly; starting the app alone does not run these schedulers.
-- Manual trigger: **Trigger Sync** button in sidebar (superadmin only) or `POST /api/sync`
+- Manual trigger: **Sinkronkan data** in the sidebar or `POST /api/sync` (admin/superadmin only). The same permission protects job status and event streams at `GET /api/sync`; other roles receive JSON 403 before the sync manager is loaded.
 - GitHub: uses Search API (`org:{org} assignee:{username}` + `author:{username}`) with 2s delay between calls to respect the 30 req/min rate limit
 - GitLab: uses group issues API (`/api/v4/groups/{id}/issues`) with 500ms delay between calls
 - Repositories are auto-discovered during sync — no manual registration needed

@@ -75,7 +75,7 @@ watch(
 );
 let events: EventSource | undefined;
 async function sync() {
-  if (workspace.preview || workspace.syncing) return;
+  if (workspace.preview || workspace.syncing || !isAdmin.value) return;
   workspace.syncing = true;
   try {
     const job = await api<{ jobId: string }>("/api/sync?source=all", {
@@ -219,6 +219,7 @@ onBeforeUnmount(() => events?.close());
             }}
           </p>
           <button
+            v-if="workspace.preview || isAdmin"
             class="sync-button"
             :disabled="workspace.preview || workspace.syncing"
             @click="sync"
