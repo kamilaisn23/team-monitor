@@ -418,6 +418,13 @@ await settle();
 assert.equal(router.currentRoute.value.path, "/");
 assert.ok(document.querySelector(".landing-page"), "Public landing page renders.");
 assert.ok(document.querySelector("#arsitektur-rbac"));
+assert.equal(
+  [...document.querySelectorAll(".landing-page a, .landing-page button")].some(
+    (element) => /demo|pratinjau/i.test(element.textContent || ""),
+  ),
+  false,
+  "Landing page has no demo or preview CTAs.",
+);
 await router.push("/admin/settings");
 await settle();
 assert.equal(
@@ -429,6 +436,11 @@ assert.equal(
   document.querySelector(".auth-provider.github").disabled,
   true,
   "Placeholder OAuth cannot start login.",
+);
+assert.equal(
+  document.querySelector(".auth-persona-box, .auth-preview-link"),
+  null,
+  "Login page has no demo personas or preview link.",
 );
 await api("/test-delete", { method: "DELETE" });
 assert.ok(requests.some((request) => request.url === "/test-delete"));

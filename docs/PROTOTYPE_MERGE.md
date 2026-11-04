@@ -24,8 +24,7 @@ produksi, lalu menghubungkannya ke API Next.js dan database Prisma.
 | --- | --- | --- |
 | `LandingPageView` | Baru, halaman publik di `/` | `frontend/src/pages/Landing.vue` |
 | `LoginView` | Diperbarui mengikuti layout prototipe; tetap memakai GitHub OAuth asli | `frontend/src/pages/Login.vue` |
-| `LoginModal` | Baru, modal login dari landing page | `frontend/src/components/LoginModal.vue` |
-| `AdminPreviewModal` | Baru, placeholder panel admin dari landing page | `frontend/src/components/AdminPreviewModal.vue` |
+| `LoginModal` | Baru, modal login GitHub dari landing page | `frontend/src/components/LoginModal.vue` |
 | `PendingApprovalView` | Sudah ada di alur akses | `frontend/src/pages/Pending.vue` |
 | `ManagerCockpit` | Baru | `frontend/src/components/ManagerCockpit.vue` |
 | `ManagerPlaybookModal` | Baru | `frontend/src/components/ManagerPlaybook.vue` |
@@ -42,15 +41,16 @@ produksi, lalu menghubungkannya ke API Next.js dan database Prisma.
 ## Landing page, login, dan akses
 
 - `/` menampilkan landing page publik. Pengguna yang sudah memiliki sesi
-  diarahkan otomatis ke `/dashboard`, sedangkan pengguna anonim dapat membuka
-  `/login`, `/preview`, atau modal login dari landing page.
-- Tombol demo Manager/Developer mengarah ke `/preview` dan tidak membuat sesi
-  palsu. Data contoh tetap terisolasi dan tidak menulis ke API.
+  diarahkan otomatis ke `/dashboard`, sedangkan pengguna anonim masuk melalui
+  `/login` atau modal login GitHub dari landing page.
+- Tidak ada tombol demo Manager/Developer atau pratinjau panel admin pada UI
+  publik. Semua ajakan masuk memakai GitHub OAuth asli.
 - Login live hanya memakai GitHub OAuth melalui `/api/auth/signin/github`.
-  Tab email/kata sandi dan GitLab ditampilkan sebagai belum tersedia agar tidak
-  menyesatkan; tidak ada kredensial palsu yang diterima.
-- `AdminPreviewModal` hanya menjelaskan cakupan area admin. Halaman admin nyata
-  tetap dilindungi RBAC di router dan API.
+  Tab email/kata sandi, GitLab, dan persona contoh sudah dihapus; tidak ada
+  kredensial atau sesi palsu yang diterima.
+- Peran Manager/Developer tetap ditentukan backend dari akun GitHub yang
+  terhubung. Akun yang sama dapat dipakai untuk login; halaman admin nyata
+  dilindungi RBAC di router dan API.
 
 ## Endpoint yang mendukung fitur gabungan
 

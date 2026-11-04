@@ -1,12 +1,9 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
-import { useRouter } from "vue-router";
 import Icon from "../components/Icon.vue";
 import { workspace, bootstrap } from "../state";
 import { startGithubLogin } from "../auth";
 
-const router = useRouter();
-const tab = ref<"sso" | "credential">("sso");
 const loading = ref(false);
 const error = ref("");
 
@@ -14,8 +11,7 @@ onMounted(async () => {
   try {
     await bootstrap();
   } catch {
-    error.value =
-      "Koneksi server belum tersedia. Anda tetap dapat membuka pratinjau.";
+    error.value = "Koneksi server belum tersedia. Silakan muat ulang halaman.";
   }
 });
 
@@ -29,10 +25,6 @@ async function login() {
     error.value = (e as Error).message;
     loading.value = false;
   }
-}
-
-function preview() {
-  router.push("/preview");
 }
 </script>
 
@@ -95,61 +87,14 @@ function preview() {
         <section class="auth-form-side">
           <div class="auth-form-head">
             <span class="auth-symbol"><Icon name="shield" :size="23" /></span>
-            <h2>Pilih cara masuk</h2>
+            <h2>Masuk dengan akun GitHub</h2>
             <p>
-              Gunakan Single Sign-On akun Git Anda atau jelajahi workspace
-              dengan data contoh.
+              Autentikasi langsung ke backend Team Monitor. Peran Manager atau
+              Developer ditetapkan dari akun GitHub yang terhubung.
             </p>
           </div>
 
-          <div class="auth-persona-box">
-            <div class="auth-persona-head">
-              <span><Icon name="sparkles" :size="14" /> Akses cepat pengujian</span>
-              <small>Tanpa kata sandi</small>
-            </div>
-            <div class="auth-personas">
-              <button type="button" class="auth-persona manager" @click="preview">
-                <span class="auth-persona-icon"><Icon name="users" :size="18" /></span>
-                <span>
-                  <strong>Rian Pratama</strong>
-                  <small>Role manager · pantau seluruh tim</small>
-                </span>
-                <Icon name="right" :size="15" />
-              </button>
-              <button type="button" class="auth-persona developer" @click="preview">
-                <span class="auth-persona-icon"><Icon name="usercheck" :size="18" /></span>
-                <span>
-                  <strong>Dimas Saputra</strong>
-                  <small>Role developer · tugas sendiri</small>
-                </span>
-                <Icon name="right" :size="15" />
-              </button>
-            </div>
-            <p>Mode pratinjau memakai data contoh dan tidak mengubah data asli.</p>
-          </div>
-
-          <div class="auth-tabs" role="tablist">
-            <button
-              type="button"
-              role="tab"
-              :aria-selected="tab === 'sso'"
-              :class="{ active: tab === 'sso' }"
-              @click="tab = 'sso'"
-            >
-              <Icon name="branch" :size="15" /> Single Sign-On
-            </button>
-            <button
-              type="button"
-              role="tab"
-              :aria-selected="tab === 'credential'"
-              :class="{ active: tab === 'credential' }"
-              @click="tab = 'credential'"
-            >
-              <Icon name="file" :size="15" /> Email &amp; password
-            </button>
-          </div>
-
-          <div v-if="tab === 'sso'" class="auth-sso">
+          <div class="auth-sso">
             <p v-if="error" class="auth-error" role="alert">{{ error }}</p>
             <button
               type="button"
@@ -164,48 +109,17 @@ function preview() {
                   : "Masuk dengan GitHub Enterprise"
               }}
             </button>
-            <button type="button" class="auth-provider gitlab" disabled>
-              <Icon name="branch" :size="18" />
-              GitLab instance belum dikonfigurasi
-            </button>
             <p class="auth-note">
               <Icon name="info" :size="16" />
               Sistem memverifikasi username Anda ke database anggota tim dan
               mengarahkan ke dashboard sesuai role Manager atau Developer.
+              Akun baru akan menunggu verifikasi admin.
             </p>
             <p v-if="!workspace.config.githubConfigured" class="auth-warning">
               <Icon name="alert" :size="15" />GitHub OAuth menunggu konfigurasi
               pada environment ini.
             </p>
           </div>
-
-          <div v-else class="auth-credentials">
-            <p class="auth-note">
-              <Icon name="info" :size="16" />
-              Login email dan kata sandi belum diaktifkan pada build ini.
-              Gunakan GitHub SSO atau mode pratinjau.
-            </p>
-            <label>
-              Email perusahaan
-              <input type="email" value="rian.pratama@company.id" disabled />
-            </label>
-            <label>
-              Kata sandi
-              <input type="password" value="manager2026!" disabled />
-            </label>
-            <button type="button" class="auth-provider primary" disabled>
-              Login email belum tersedia <Icon name="right" :size="15" />
-            </button>
-          </div>
-
-          <RouterLink to="/preview" class="auth-preview-link">
-            <span><Icon name="eye" :size="19" /></span>
-            <span>
-              <strong>Lihat pratinjau desain</strong>
-              <small>Jelajahi workspace dengan data contoh</small>
-            </span>
-            <Icon name="right" :size="16" />
-          </RouterLink>
         </section>
       </div>
     </main>
@@ -380,82 +294,7 @@ function preview() {
 }
 .auth-form-head h2 { color: #111d38; font-size: 21px; letter-spacing: -0.6px; }
 .auth-form-head p { color: var(--muted); font-size: 10.5px; }
-.auth-persona-box {
-  padding: 13px;
-  border: 1px solid #bfd3f6;
-  border-radius: 13px;
-  background: #f0f5ff;
-}
-.auth-persona-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 9px;
-}
-.auth-persona-head span {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  color: #4368ed;
-  font-size: 8.5px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-}
-.auth-persona-head small {
-  padding: 3px 7px;
-  border-radius: 999px;
-  background: #d9f5e9;
-  color: #20775d;
-  font-size: 8px;
-  font-weight: 800;
-}
-.auth-personas { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
-.auth-persona {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  padding: 9px;
-  border: 1px solid #c5d5f2;
-  border-radius: 10px;
-  background: #fff;
-  text-align: left;
-}
-.auth-persona:hover { border-color: #4368ed; box-shadow: 0 4px 13px #3454b014; }
-.auth-persona.developer:hover { border-color: #3c9a7c; }
-.auth-persona-icon {
-  width: 30px;
-  height: 30px;
-  display: grid;
-  place-items: center;
-  flex: 0 0 auto;
-  border-radius: 8px;
-  background: #eaf0ff;
-  color: #4368ed;
-}
-.auth-persona.developer .auth-persona-icon { background: #e7f6ef; color: #2f8368; }
-.auth-persona > span:nth-child(2) { min-width: 0; flex: 1; display: grid; gap: 2px; }
-.auth-persona strong { color: var(--ink); font-size: 10px; }
-.auth-persona small { color: var(--muted); font-size: 8px; overflow-wrap: anywhere; }
-.auth-persona > svg { color: #a4b4cc; flex: 0 0 auto; }
-.auth-persona-box > p { margin-top: 8px; color: #587099; font-size: 8.5px; }
-.auth-tabs { display: flex; border-bottom: 1px solid var(--line); }
-.auth-tabs button {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 38px;
-  border-bottom: 2px solid transparent;
-  color: var(--muted);
-  font-size: 9.5px;
-  font-weight: 750;
-}
-.auth-tabs button.active { border-color: #4368ed; color: #4368ed; }
-.auth-sso, .auth-credentials { display: grid; gap: 8px; }
+.auth-sso { display: grid; gap: 8px; }
 .auth-provider {
   display: flex;
   align-items: center;
@@ -470,8 +309,6 @@ function preview() {
 }
 .auth-provider.github { background: #24292e; }
 .auth-provider.github:hover:not(:disabled) { background: #1b1f23; }
-.auth-provider.gitlab { background: #b6432e; opacity: 0.7; }
-.auth-provider.primary { background: #4368ed; }
 .auth-note {
   display: flex;
   align-items: flex-start;
@@ -494,48 +331,6 @@ function preview() {
   color: #9c3f54;
   font-size: 9.5px;
 }
-.auth-credentials label {
-  display: grid;
-  gap: 5px;
-  color: var(--ink);
-  font-size: 9.5px;
-  font-weight: 700;
-}
-.auth-credentials input {
-  width: 100%;
-  min-height: 38px;
-  padding: 9px 11px;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: #f4f7fb;
-  color: #8293aa;
-  font-size: 10px;
-}
-.auth-preview-link {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 11px;
-  background: #f8fbff;
-  transition: 0.18s;
-}
-.auth-preview-link:hover { border-color: #adbfe4; background: #f2f7ff; }
-.auth-preview-link > span:first-child {
-  width: 31px;
-  height: 31px;
-  display: grid;
-  place-items: center;
-  flex: 0 0 auto;
-  border-radius: 9px;
-  background: #e8efff;
-  color: #4368ed;
-}
-.auth-preview-link > span:nth-child(2) { min-width: 0; flex: 1; display: grid; gap: 2px; }
-.auth-preview-link strong { color: var(--ink); font-size: 10px; }
-.auth-preview-link small { color: var(--muted); font-size: 8.5px; }
-.auth-preview-link > svg { color: #a4b4cc; }
 .auth-footer {
   display: flex;
   align-items: center;
@@ -560,7 +355,6 @@ function preview() {
   .auth-topbar-inner { width: calc(100% - 24px); }
   .auth-secure { display: none; }
   .auth-form-side { padding: 20px; }
-  .auth-personas { grid-template-columns: 1fr; }
   .auth-footer { flex-direction: column; align-items: flex-start; }
 }
 </style>

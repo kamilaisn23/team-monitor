@@ -7,9 +7,9 @@ import Icon from "../components/Icon.vue";
       <span class="status-symbol"><Icon name="search" :size="32" /></span>
       <div class="eyebrow">404 · PAGE NOT FOUND</div>
       <h1>Halaman belum ditemukan</h1>
-      <p>Alamat ini tidak tersedia. Kembali ke workspace untuk melanjutkan.</p>
-      <RouterLink to="/preview" class="button primary"
-        ><Icon name="left" :size="17" />Kembali ke pratinjau</RouterLink
+      <p>Alamat ini tidak tersedia. Kembali ke beranda untuk melanjutkan.</p>
+      <RouterLink to="/" class="button primary"
+        ><Icon name="left" :size="17" />Kembali ke beranda</RouterLink
       >
     </section>
   </main>

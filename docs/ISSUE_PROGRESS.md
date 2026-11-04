@@ -18,6 +18,6 @@ Issue dikerjakan berurutan dan ditutup setelah kode dipublikasikan, pemeriksaan 
 | #10 | Selesai di kode | Riwayat tindak lanjut tersimpan di `follow_up_history`; pusat perhatian membaca tabel `follow_ups`. Belum diverifikasi pada deployment. |
 | #11–#18 | Menunggu giliran | Daftar dan tautan lengkap: GITHUB_ISSUES.md. |
 
-Perbaikan #1 sudah diuji dengan matriks role, pencegahan side effect sebelum worker dimuat, status/SSE, visibilitas tombol, cooldown, dan JSON 401/403. Preview publik tetap tersedia. Login live belum diuji karena #2 ditunda.
+Perbaikan #1 sudah diuji dengan matriks role, pencegahan side effect sebelum worker dimuat, status/SSE, visibilitas tombol, cooldown, dan JSON 401/403. Landing page dan login tidak lagi menampilkan demo persona atau tautan pratinjau; semua ajakan masuk memakai GitHub OAuth. Login live belum diuji karena #2 ditunda.
 
-Prototipe `prototype-user` sudah disatukan ke frontend Vue: landing page publik, halaman login dan modal login, pusat kendali manager, panduan peran, redistribusi beban internal, dan catatan 1-on-1. Pemetaan komponen dan batasan sinkronisasi platform ada di `PROTOTYPE_MERGE.md`. `npm run typecheck`, `npm test`, dan `npm run test:migrations` lulus dengan PostgreSQL lokal Docker pada port `5434`.
+Prototipe `prototype-user` sudah disatukan ke frontend Vue: landing page publik, halaman login dan modal login GitHub, pusat kendali manager, panduan peran, redistribusi beban internal, dan catatan 1-on-1. Pemetaan komponen dan batasan sinkronisasi platform ada di `PROTOTYPE_MERGE.md`. `npm run typecheck`, `npm test`, dan `npm run test:migrations` lulus dengan PostgreSQL lokal Docker pada port `5434`.
