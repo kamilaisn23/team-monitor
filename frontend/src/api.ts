@@ -1,3 +1,5 @@
+import { serializeCsv } from "../../src/lib/csv";
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -48,14 +50,8 @@ export function query(
   return params;
 }
 export function exportCsv(filename: string, rows: (string | number)[][]) {
-  const quote = (value: string | number) =>
-    '"' +
-    String(value)
-      .replace(/^[=+@-]/, "'$&")
-      .replaceAll('"', '""') +
-    '"';
   const blob = new Blob(
-    ["\uFEFF" + rows.map((row) => row.map(quote).join(",")).join("\r\n")],
+    [serializeCsv(rows)],
     { type: "text/csv;charset=utf-8" },
   );
   const url = URL.createObjectURL(blob);

@@ -1,0 +1,154 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("settings")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  DEVELOPER
+  UNASSIGNED
+}
+
+enum Platform {
+  GITHUB
+  GITLAB
+}
+
+enum IssueState {
+  OPEN
+  CLOSED
+}
+
+model TeamMember {
+  id                   String    @id @default(cuid())
+  name                 String
+  usernameGithub       String?   @unique @map("username_github")
+  usernameGitlab       String?   @unique @map("username_gitlab")
+  role                 Role      @default(UNASSIGNED)
+  githubOauthId        String?   @unique @map("github_oauth_id")
+  avatarUrl            String?   @map("avatar_url")
+  isActive             Boolean   @default(true) @map("is_active")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  lastLoginAt          DateTime? @map("last_login_at")
+  kerjabaikEmployeeId  String?   @unique @map("kerjabaik_employee_id")
+
+  teams          TeamMembership[]
+  createdIssues  Issue[]          @relation("IssueCreator")
+  assignedIssues IssueAssignee[]
+
+  @@map("team_members")
+}
+
+model Team {
+  id                  String   @id @default(cuid())
+  name                String   @unique
+  kerjabaikProjectId  String?  @unique @map("kerjabaik_project_id")
+  isArchived          Boolean  @default(false) @map("is_archived")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  members      TeamMembership[]
+  repositories RepositoryTeam[]
+
+  @@map("teams")
+}
+
+model TeamMembership {
+  teamId       String @map("team_id")
+  teamMemberId String @map("team_member_id")
+
+  team   Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  member TeamMember @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
+
+  @@id([teamId, teamMemberId])
+  @@map("team_memberships")
+}
+
+model Repository {
+  id           String   @id @default(cuid())
+  platform     Platform
+  name         String
+  url          String   @unique
+  platformId   String?  @map("platform_id")
+  ignored      Boolean  @default(false)
+  discoveredAt DateTime @default(now()) @map("discovered_at")
+
+  teams  RepositoryTeam[]
+  issues Issue[]
+
+  @@map("repositories")
+}
+
+model RepositoryTeam {
+  repositoryId String @map("repository_id")
+  teamId       String @map("team_id")
+
+  repository Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  team       Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@id([repositoryId, teamId])
+  @@map("repository_teams")
+}
+
+model Issue {
+  id                  String     @id @default(cuid())
+  platformId          String     @map("platform_id")
+  repositoryId        String     @map("repository_id")
+  title               String
+  url                 String
+  state               IssueState
+  creatorUsername     String     @map("creator_username")
+  creatorTeamMemberId String?    @map("creator_team_member_id")
+  createdAt           DateTime   @map("created_at")
+  closedAt            DateTime?  @map("closed_at")
+  syncedAt            DateTime   @default(now()) @updatedAt @map("synced_at")
+
+  repository Repository      @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  creator    TeamMember?     @relation("IssueCreator", fields: [creatorTeamMemberId], references: [id], onDelete: SetNull)
+  assignees  IssueAssignee[]
+
+  @@unique([platformId, repositoryId])
+  @@index([repositoryId])
+  @@index([creatorTeamMemberId])
+  @@index([state])
+  @@index([createdAt])
+  @@index([closedAt])
+  @@map("issues")
+}
+
+model SyncJob {
+  id         String    @id
+  status     String
+  startedAt  DateTime  @default(now()) @map("started_at")
+  finishedAt DateTime? @map("finished_at")
+  summary    Json?
+
+  @@map("sync_jobs")
+}
+
+model IssueAssignee {
+  id               String  @id @default(cuid())
+  issueId          String  @map("issue_id")
+  platformUsername String  @map("platform_username")
+  teamMemberId     String? @map("team_member_id")
+
+  issue      Issue       @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  teamMember TeamMember? @relation(fields: [teamMemberId], references: [id], onDelete: SetNull)
+
+  @@unique([issueId, platformUsername])
+  @@index([teamMemberId])
+  @@index([issueId])
+  @@map("issue_assignees")
+}

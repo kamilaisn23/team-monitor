@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { canReadWorkspace, issueReadScope } from "@/lib/read-access";
 
 export async function GET() {
     const session = await auth();
@@ -9,7 +10,9 @@ export async function GET() {
             headers: { "Content-Type": "application/json" },
         });
 
+    if (!canReadWorkspace(session)) return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { "Content-Type": "application/json" } });
     const result = await prisma.issue.aggregate({
+        where: issueReadScope(session),
         _max: { syncedAt: true },
     });
 

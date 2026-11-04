@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, onMounted } from "vue";
 import PageHeading from "../components/PageHeading.vue";
+import SyncHealth from "../components/SyncHealth.vue";
 import Icon from "../components/Icon.vue";
 import Modal from "../components/Modal.vue";
 import MemberDialog from "../components/MemberDialog.vue";
@@ -80,6 +81,7 @@ async function save() {
         }}</span
       ></PageHeading
     >
+    <SyncHealth />
     <div v-if="error" class="error-banner" role="alert">
       <Icon name="alert" />{{ error }}
     </div>

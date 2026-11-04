@@ -118,6 +118,10 @@ assert.equal(
 assert.equal((await get("state=open&stale=true&page=2&limit=1")).body.total, 1);
 session = { user: { role: "DEVELOPER", id: "other", isSuperadmin: false } };
 assert.equal((await get("stale=true")).status, 403);
+session.user.id = 'member';
+assert.equal((await get('stale=true')).status, 200);
+session.user.role = 'UNASSIGNED';
+assert.equal((await get('stale=true')).status, 403, 'Unassigned cannot read profiles, even own ID');
 session = null;
 assert.equal((await get("stale=true")).status, 401);
 console.log(

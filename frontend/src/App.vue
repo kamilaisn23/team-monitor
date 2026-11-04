@@ -75,7 +75,7 @@ watch(
 );
 let events: EventSource | undefined;
 async function sync() {
-  if (workspace.preview || workspace.syncing) return;
+  if (workspace.preview || workspace.syncing || !isAdmin.value) return;
   workspace.syncing = true;
   try {
     const job = await api<{ jobId: string }>("/api/sync?source=all", {
@@ -118,7 +118,7 @@ async function sync() {
   }
 }
 function selectTeam() {
-  if (section.value !== "dashboard") router.push(sectionHref("dashboard"));
+  if (!['dashboard', 'reports'].includes(section.value)) router.push(sectionHref("dashboard"));
 }
 async function logout() {
   try {
@@ -219,6 +219,7 @@ onBeforeUnmount(() => events?.close());
             }}
           </p>
           <button
+            v-if="workspace.preview || isAdmin"
             class="sync-button"
             :disabled="workspace.preview || workspace.syncing"
             @click="sync"
@@ -234,8 +235,10 @@ onBeforeUnmount(() => events?.close());
           class="sidebar-collapse"
           @click="sidebarCollapsed = !sidebarCollapsed"
           :aria-label="sidebarCollapsed ? 'Perluas sidebar' : 'Ringkas sidebar'"
+          :title="sidebarCollapsed ? 'Perluas sidebar' : 'Ringkas sidebar'"
+          :aria-expanded="!sidebarCollapsed"
         >
-          <Icon name="collapse" :size="18" /><span>Ringkas sidebar</span>
+          <Icon :name="sidebarCollapsed ? 'expand' : 'collapse'" :size="18" />
         </button>
         <div class="sidebar-footnote">
           <span class="tiny-logo">TM</span

@@ -9,8 +9,15 @@ import Pager from "../components/Pager.vue";
 import Modal from "../components/Modal.vue";
 import MemberDialog from "../components/MemberDialog.vue";
 import ManagerBrief from "../components/ManagerBrief.vue";
+import ManagerCockpit from "../components/ManagerCockpit.vue";
+import ManagerPlaybook from "../components/ManagerPlaybook.vue";
+import WeeklyTrends from "../components/WeeklyTrends.vue";
+import SavedFilters from "../components/SavedFilters.vue";
+import AttentionCenter from "../components/AttentionCenter.vue";
+import RebalanceModal from "../components/RebalanceModal.vue";
+import type { DashboardFilters } from "../dashboard-filters";
 import { api, query } from "../api";
-import { workspace } from "../state";
+import { workspace, isDeveloper } from "../state";
 import { sectionHref } from "../router";
 import {
   levelLabels,
@@ -46,6 +53,19 @@ const directory = ref<HTMLElement>();
 const searchInput = ref<HTMLInputElement>();
 const issueResponse = ref<DashboardIssueResponse>();
 const issuePage = ref(1), issueLoading = ref(false), issueError = ref("");
+const attentionOpen = ref(false);
+const rebalanceOpen = ref(false);
+const playbookOpen = ref(false);
+const canReview = computed(() => workspace.preview || workspace.session?.user.isSuperadmin || ['ADMIN', 'MANAGER'].includes(workspace.session?.user.role || ''));
+const currentFilters = computed<DashboardFilters>(() => ({
+  teamId: workspace.teamId, name: name.value, active: active.value, workload: workload.value,
+  platform: platform.value, repositoryId: repositoryId.value, sortCol: sortCol.value, sortDir: sortDir.value, view: view.value,
+}));
+function applyFilters(filters: DashboardFilters) {
+  workspace.teamId = filters.teamId; name.value = filters.name; active.value = filters.active;
+  workload.value = filters.workload; platform.value = filters.platform; repositoryId.value = filters.repositoryId;
+  sortCol.value = filters.sortCol; sortDir.value = filters.sortDir; view.value = filters.view; page.value = 1;
+}
 let issueRequestId = 0;
 const levels: WorkloadLevel[] = ["low", "medium", "high"];
 const params = computed(() =>
@@ -162,8 +182,8 @@ const scopeName = computed(
 <template>
   <div class="page-content">
     <PageHeading
-      title="Tim hebat, kerja terarah"
-      description="Lihat kapasitas tim, pahami beban kerja, dan tentukan prioritas berikutnya."
+      :title="isDeveloper ? 'Pekerjaan Anda, lebih terarah' : 'Tim hebat, kerja terarah'"
+      :description="isDeveloper ? 'Dashboard pribadi berdasarkan pekerjaan dan penugasan Anda.' : 'Lihat kapasitas tim, pahami beban kerja, dan tentukan prioritas berikutnya.'"
       ><span class="scope-tag"
         ><Icon name="teams" :size="16" />{{ scopeName }}</span
       ><button
@@ -175,10 +195,22 @@ const scopeName = computed(
           :size="16"
         /></button
     ></PageHeading>
+    <SavedFilters :filters="currentFilters" @apply="applyFilters" />
+    <ManagerCockpit
+      v-if="canReview"
+      :high-workload="summary?.highWorkload ?? 0"
+      :stale-issues="summary?.staleIssues ?? 0"
+      :resolved-last7-days="summary?.resolvedLast7Days ?? 0"
+      @rebalance="rebalanceOpen = true"
+      @attention="attentionOpen = true"
+      @reports="router.push(sectionHref('reports'))"
+      @playbook="playbookOpen = true"
+    />
+    <p v-if="isDeveloper" class="info-banner"><Icon name="shield" :size="17" />Anda hanya melihat data pribadi. Filter tim tidak memperluas akses ke pekerjaan anggota lain.</p>
     <div v-if="error" class="error-banner" role="alert">
       <Icon name="alert" />{{ error }}<button @click="load">Coba lagi</button>
     </div>
-    <div class="metric-grid" :aria-busy="loading">
+    <div class="metric-grid dashboard-metrics" :aria-busy="loading">
       <MetricCard
         label="Anggota tim"
         :value="summary?.memberCount ?? '—'"
@@ -217,7 +249,10 @@ const scopeName = computed(
       @review="issueMetric('stale')"
       @workload="focusDirectory('high')"
       @issue="previewIssue"
+      :can-review="canReview"
+      @attention="attentionOpen = true"
     />
+    <WeeklyTrends :trends="error ? undefined : response?.trends" :loading="loading" />
     <div class="insight-grid">
       <section class="capacity-panel">
         <div class="panel-title">
@@ -657,6 +692,19 @@ const scopeName = computed(
       v-if="memberId"
       :member-id="memberId"
       @close="memberId = ''"
+    />
+    <AttentionCenter v-if="attentionOpen && canReview" :params="params" :scope="scopeName" @close="attentionOpen = false" />
+    <RebalanceModal
+      v-if="rebalanceOpen && canReview"
+      @close="rebalanceOpen = false"
+      @done="workspace.refreshKey++"
+    />
+    <ManagerPlaybook
+      v-if="playbookOpen && canReview"
+      @close="playbookOpen = false"
+      @attention="playbookOpen = false; attentionOpen = true"
+      @rebalance="playbookOpen = false; rebalanceOpen = true"
+      @reports="playbookOpen = false; router.push(sectionHref('reports'))"
     />
   </div>
 </template>

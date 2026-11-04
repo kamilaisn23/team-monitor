@@ -23,6 +23,7 @@ export interface DashboardResponse {
   };
   thresholds: { lowMax: number; mediumMax: number; staleDays: number };
   attentionIssues: DashboardIssue[];
+  trends: DashboardTrends;
   teamOverview: {
     id: string;
     name: string;
@@ -30,6 +31,12 @@ export interface DashboardResponse {
     assignments: number;
     highWorkload: number;
   }[];
+}
+
+export interface DashboardTrends {
+  weeks: { start: string; end: string; created: number; resolved: number }[];
+  createdDelta: number;
+  resolvedDelta: number;
 }
 
 export interface DashboardIssue {

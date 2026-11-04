@@ -3,13 +3,18 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { isKerjabaikSyncEnabled } from '@/lib/kerjabaik-flag'
 import { isAdminRole } from '@/lib/session'
+import { canReadWorkspace, isSelfScoped, teamReadScope } from '@/lib/read-access'
+import { readJsonObject } from '@/lib/json-body'
+import { validTeamBody } from '@/lib/input-validation'
 
 export async function GET() {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!canReadWorkspace(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const teams = await prisma.team.findMany({
-    include: { _count: { select: { members: true } } },
+    where: teamReadScope(session),
+    include: { _count: { select: { members: isSelfScoped(session) ? { where: { teamMemberId: session.user.id } } : true } } },
     orderBy: { name: 'asc' },
   })
 
@@ -34,7 +39,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'managed_in_kerjabaik' }, { status: 409 })
   }
 
-  const body = await req.json() as { name?: string }
+  const parsed = await readJsonObject(req)
+  if (!parsed.ok) return parsed.response
+  const body = parsed.value
+  if (!validTeamBody(body)) return NextResponse.json({ error: 'name must be 1–200 characters without controls' }, { status: 400 })
   if (!body.name?.trim()) return NextResponse.json({ error: 'name is required' }, { status: 400 })
 
   try {

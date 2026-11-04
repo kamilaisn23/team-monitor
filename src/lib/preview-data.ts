@@ -1,4 +1,5 @@
 import type { DashboardResponse, DashboardMember, DashboardIssue, DashboardIssueResponse } from "../types/dashboard";
+import { dashboardTrends } from "./dashboard-trends";
 
 // Deliberately fictional, browser-local data. No database or authenticated API access.
 export const previewTeams = [
@@ -208,6 +209,19 @@ export function getPreviewDashboard(
     summary,
     thresholds: { lowMax: 3, mediumMax: 7, staleDays: 30 },
     teamOverview,
+    trends: dashboardTrends([
+      ...scopedIssues.map((issue) => ({
+        createdAt: new Date(previewReferenceTime - issue.ageDays * 86400000), closedAt: null,
+      })),
+      ...previewCompletions.filter((issue) =>
+        scope.some((member) => member.memberId === issue.memberId) &&
+        (!repoId || issue.repository.id === repoId) &&
+        (!platform || platform === "all" || issue.repository.platform === platform),
+      ).map((issue, index) => ({
+        createdAt: new Date(previewReferenceTime - (issue.closedDaysAgo + 4 + index % 12) * 86400000),
+        closedAt: new Date(previewReferenceTime - issue.closedDaysAgo * 86400000),
+      })),
+    ], new Date(previewReferenceTime)),
     attentionIssues: scopedIssues.filter((issue) => issue.ageDays > 30)
       .sort((a, b) => b.ageDays - a.ageDays || a.id.localeCompare(b.id))
       .slice(0, 3).map(previewDashboardIssue),

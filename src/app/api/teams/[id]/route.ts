@@ -3,6 +3,8 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { isKerjabaikSyncEnabled } from '@/lib/kerjabaik-flag'
 import { isAdminRole } from '@/lib/session'
+import { readJsonObject } from '@/lib/json-body'
+import { validTeamBody } from '@/lib/input-validation'
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -14,7 +16,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const { id } = await params
-  const body = await req.json() as { name?: string }
+  const parsed = await readJsonObject(req)
+  if (!parsed.ok) return parsed.response
+  const body = parsed.value
+  if (!validTeamBody(body)) return NextResponse.json({ error: 'name must be 1–200 characters without controls' }, { status: 400 })
   if (!body.name?.trim()) return NextResponse.json({ error: 'name is required' }, { status: 400 })
 
   const existing = await prisma.team.findUnique({ where: { id } })

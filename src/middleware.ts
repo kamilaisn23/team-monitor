@@ -34,6 +34,9 @@ export default auth((req) => {
 
   // Developer access restrictions (admin pages only)
   if (role === 'DEVELOPER' && !isSuperadmin) {
+    if (pathname.startsWith('/members/') && pathname !== `/members/${session.user.id}`) {
+      return NextResponse.redirect(new URL(session.user.id ? `/members/${session.user.id}` : '/dashboard', req.url))
+    }
     if (pathname.startsWith('/admin')) {
       return NextResponse.redirect(new URL('/dashboard', req.url))
     }

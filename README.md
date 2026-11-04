@@ -135,6 +135,14 @@ npm test
 
 The dashboard includes a manager summary with scoped issue-age alerts, high-workload members, and the count of issues closed in the last seven days. The alert panel shows the three oldest open issues beyond the configured `staleDays` threshold. “Tinjau isu” opens the full paginated list; live issues link to their source on GitHub or GitLab. Age is measured from creation time and does not indicate the last activity or a confirmed blocker. Summary and detail lists follow the team, member, active status, platform, and repository filters; workload tabs and directory pagination do not change the summary scope. Preview uses fictional completion history and never calls private APIs.
 
+### Dashboard updates
+
+- **Weekly trends:** four adjacent rolling seven-day periods compare issue creation and closure events. The latest period shows its difference from the previous period. Charts follow the team, member name, active status, platform and repository scope, independent of directory pagination and workload tabs. Current assignments determine the member scope; this is not a historical capacity snapshot. Dates are displayed in Asia/Jakarta.
+- **Attention center:** use **Buka pusat perhatian** in the manager summary to review old open issues and issues without any source assignee. Unassigned issues follow repository team tags; when searching by member (or filtering inactive members), they follow the issue creator. A source assignee who is not a registered member does not count as unassigned. Reason/status filters and pagination apply before rendering.
+- **Follow-up records:** managers, admins and the superadmin can save a review status, an active member as follow-up owner, and a note of up to 2,000 characters. Records are shared through the existing `settings` table under `attention:issue:<id>`, so no database migration is required. Revision checks reject concurrent overwrites. This does not change source issue assignments. Closed or ignored issues disappear from the center; notes remain stored for possible reopening. Due dates and last-activity alerts are not available because those fields are not synchronized yet.
+- **Favorite filters:** save up to 12 named dashboard presets (scope, search, platform, repository, member status, workload, sorting and view). Presets persist per GitHub account in the current browser. Applying a preset resets pagination; missing teams or ignored/deleted repositories require resaving the preset. A matching name updates the existing preset.
+- **Preview isolation:** `/preview` supports all three features with fictional data. Favorite filters and example follow-ups use separate browser storage keys and never call authenticated APIs or write to the database.
+
 ### Run the sync job manually (development)
 
 ```bash
@@ -231,8 +239,9 @@ The frontend is entirely Vue. Next.js and its React runtime remain backend depen
 | Role | Access |
 |---|---|
 | **Superadmin** | Full access — hardcoded via `SUPERADMIN_GITHUB_USERNAME` env var, not stored in DB |
+| **Admin** | Admin pages and manual synchronization; Settings remains superadmin-only |
 | **Manager** | Dashboard, reports, member profiles |
-| **Developer** | Own profile only |
+| **Developer** | Own profile, personal dashboard and personal reports/CSV; only own memberships and repositories linked to own issues are available |
 | **Unassigned** | Pending screen only — superadmin must assign a role |
 
 ---
@@ -241,7 +250,7 @@ The frontend is entirely Vue. Next.js and its React runtime remain backend depen
 
 - GitHub/GitLab default schedule: daily at 02:00 WIB (`SYNC_CRON_SCHEDULE=0 19 * * *` with a UTC cron host). The separate cron process/container must be running for scheduled jobs.
 - Kerjabaik defaults to hourly; starting the app alone does not run these schedulers.
-- Manual trigger: **Trigger Sync** button in sidebar (superadmin only) or `POST /api/sync`
+- Manual trigger: **Sinkronkan data** in the sidebar or `POST /api/sync` (admin/superadmin only). The same permission protects job status and event streams at `GET /api/sync`; other roles receive JSON 403 before the sync manager is loaded.
 - GitHub: uses Search API (`org:{org} assignee:{username}` + `author:{username}`) with 2s delay between calls to respect the 30 req/min rate limit
 - GitLab: uses group issues API (`/api/v4/groups/{id}/issues`) with 500ms delay between calls
 - Repositories are auto-discovered during sync — no manual registration needed

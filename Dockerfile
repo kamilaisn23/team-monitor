@@ -33,7 +33,7 @@ COPY --from=builder /app/src ./src
 COPY --from=builder /app/tsconfig*.json ./
 ENV HOSTNAME=0.0.0.0
 EXPOSE 3000
-CMD ["sh", "-c", "npx prisma db push --skip-generate && node server.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && exec node scripts/production.mjs"]
 
 FROM runner AS sync-runner
 CMD ["node", "/app/scripts/sync-cron.js"]

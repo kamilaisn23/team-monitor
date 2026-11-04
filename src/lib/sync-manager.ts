@@ -1,190 +1,101 @@
-import { Worker } from "worker_threads";
-import { PrismaClient } from "@prisma/client";
-import type { SyncProgressEvent } from "@/lib/sync";
+import { randomUUID } from "node:crypto";
+import { Worker } from "node:worker_threads";
+import { prisma } from "./prisma";
+import { acquireSyncLock } from "./sync-lock";
+import { SYNC_COOLDOWN_MS, SYNC_SOURCES, sourceConfigured, type SyncEvent, type SyncSelection } from "./sync-config";
 
 export type JobStatus = "running" | "done" | "error";
-
 export interface SyncJob {
-    id: string;
-    status: JobStatus;
-    events: Array<SyncProgressEvent | { type: "error"; message: string }>;
-    listeners: Array<
-        (event: SyncProgressEvent | { type: "error"; message: string }) => void
-    >;
+  id: string;
+  status: JobStatus;
+  events: SyncEvent[];
+  listeners: Array<(event: SyncEvent) => void>;
 }
-
-const prisma = new PrismaClient();
-
-// Module-level store — survives across requests in the same Node.js process
 const jobs = new Map<string, SyncJob>();
-
-const JOB_TTL_MS = 10 * 60 * 1000;
-
-const SYNC_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
-let lastSyncCompletedAt: number | null = null;
-
-// On module load: mark any stale running DB jobs as error.
-// They were orphaned by a previous container restart — the worker threads are dead.
-(async () => {
-    try {
-        const updated = await prisma.syncJob.updateMany({
-            where: { status: "running" },
-            data: { status: "error", finishedAt: new Date() },
-        });
-        if (updated.count > 0) {
-            console.log(
-                `[sync-manager] Marked ${updated.count} stale running job(s) as error on startup`,
-            );
-        }
-    } catch (e) {
-        console.error("[sync-manager] Failed to clean stale sync jobs:", e);
+export class SyncStartError extends Error {
+  constructor(public status: number, message: string, public retryAfter = 0) { super(message); }
+}
+export async function getCooldownSecondsRemaining() {
+  const last = await prisma.syncJob.findFirst({ where: { finishedAt: { not: null } }, orderBy: { finishedAt: "desc" } });
+  return last?.finishedAt ? Math.max(0, Math.ceil((SYNC_COOLDOWN_MS - (Date.now() - last.finishedAt.getTime())) / 1000)) : 0;
+}
+export async function isJobRunning() {
+  const release = await acquireSyncLock(() => {});
+  if (!release) return true;
+  await release();
+  return false;
+}
+export async function createSyncJob(source: SyncSelection = "all", trigger: "manual" | "scheduled" = "manual", scheduledAt?: string): Promise<string> {
+  const workerPath = process.env.SYNC_WORKER_PATH;
+  if (!workerPath) throw new Error("SYNC_WORKER_PATH environment variable is not set");
+  if (!(source === "all" ? SYNC_SOURCES.some(item => sourceConfigured(item)) : sourceConfigured(source))) {
+    throw new SyncStartError(400, "Integration is not configured");
+  }
+  let worker: Worker | undefined;
+  let lockLost = false;
+  const release = await acquireSyncLock(() => { lockLost = true; void worker?.terminate(); });
+  if (!release) throw new SyncStartError(409, "A sync is already in progress");
+  const id = `sync_${randomUUID()}`;
+  try {
+    const scheduleKey = `sync:schedule:${source}`;
+    if (trigger === "scheduled") {
+      if (!scheduledAt || source === "all") throw new Error("Scheduled sync requires a source and occurrence");
+      const previous = await prisma.setting.findUnique({ where: { key: scheduleKey } });
+      if (previous && previous.value >= scheduledAt) throw new SyncStartError(409, "Schedule already processed");
     }
-})();
-
-function cleanupJob(jobId: string) {
-    setTimeout(() => jobs.delete(jobId), JOB_TTL_MS);
-}
-
-// Worker path is supplied via SYNC_WORKER_PATH env var (set in Dockerfile).
-function resolveWorkerPath(): string {
-    const envPath = process.env.SYNC_WORKER_PATH;
-    if (envPath) return envPath;
-    throw new Error(
-        "SYNC_WORKER_PATH environment variable is not set. " +
-            "Set it to the absolute path of the compiled scripts/sync-worker.js file.",
-    );
-}
-
-export function createSyncJob(source = "all"): string {
-    const jobId = `sync_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-
-    const job: SyncJob = {
-        id: jobId,
-        status: "running",
-        events: [],
-        listeners: [],
+    const cooldown = await getCooldownSecondsRemaining();
+    if (cooldown) throw new SyncStartError(429, "Sync cooldown active. Please wait before syncing again.", cooldown);
+    // Only the global lock owner can recover orphaned jobs.
+    await prisma.syncJob.updateMany({ where: { status: "running" }, data: { status: "error", finishedAt: new Date(), summary: { type: "error", message: "Sync interrupted by a previous process shutdown" } } });
+    await prisma.$transaction(async (tx) => {
+      await tx.syncJob.create({ data: { id, status: "running", summary: { source, trigger } } });
+      if (scheduledAt) await tx.setting.upsert({ where: { key: scheduleKey }, create: { key: scheduleKey, value: scheduledAt }, update: { value: scheduledAt } });
+    });
+    if (lockLost) throw new Error("Sync database lock lost");
+    const job: SyncJob = { id, status: "running", events: [], listeners: [] };
+    jobs.set(id, job);
+    let terminal: SyncEvent | undefined;
+    worker = new Worker(workerPath, { workerData: { source, jobId: id, trigger }, env: { ...process.env } });
+    const broadcast = (event: SyncEvent) => {
+      job.events.push(event);
+      if (job.events.length > 500) job.events.shift();
+      for (const listener of [...job.listeners]) { try { listener(event); } catch { /* disconnected client */ } }
     };
-
-    jobs.set(jobId, job);
-
-    // Persist to DB — fire and forget, don't block job creation
-    prisma.syncJob
-        .create({ data: { id: jobId, status: "running" } })
-        .catch((e: unknown) =>
-            console.error(
-                "[sync-manager] Failed to persist sync job to DB:",
-                e,
-            ),
-        );
-
-    const workerPath = resolveWorkerPath();
-
-    const worker = new Worker(workerPath, {
-        workerData: { source },
-        env: { ...process.env },
+    worker.on("message", (event: SyncEvent) => {
+      // Hold the lock until worker exit, including DB cleanup.
+      if (event.type === "done" || event.type === "error") terminal = event;
+      else broadcast(event);
     });
-
-    const broadcast = (
-        event: SyncProgressEvent | { type: "error"; message: string },
-    ) => {
-        job.events.push(event);
-        for (const listener of [...job.listeners]) {
-            listener(event);
-        }
-    };
-
-    worker.on(
-        "message",
-        (event: SyncProgressEvent | { type: "error"; message: string }) => {
-            broadcast(event);
-            if (event.type === "done") {
-                job.status = "done";
-                job.listeners = [];
-                lastSyncCompletedAt = Date.now();
-                prisma.syncJob
-                    .update({
-                        where: { id: jobId },
-                        data: {
-                            status: "done",
-                            finishedAt: new Date(),
-                            summary: event as object,
-                        },
-                    })
-                    .catch((e: unknown) =>
-                        console.error(
-                            "[sync-manager] Failed to update sync job in DB:",
-                            e,
-                        ),
-                    );
-                cleanupJob(jobId);
-            }
-        },
-    );
-
-    worker.on("error", (err) => {
-        broadcast({ type: "error", message: err.message });
-        job.status = "error";
-        job.listeners = [];
-        prisma.syncJob
-            .update({
-                where: { id: jobId },
-                data: { status: "error", finishedAt: new Date() },
-            })
-            .catch((e: unknown) =>
-                console.error(
-                    "[sync-manager] Failed to update sync job in DB:",
-                    e,
-                ),
-            );
-        cleanupJob(jobId);
+    worker.on("error", () => { terminal = { type: "error", message: "Sync worker failed; check source health" }; });
+    worker.on("exit", async (code) => {
+      const event = lockLost ? { type: "error", message: "Sync database lock lost; worker stopped" }
+        : terminal || { type: "error", message: `Sync worker exited without a result (${code})` };
+      let status: JobStatus = event.type === "done" ? "done" : "error";
+      try {
+        await prisma.syncJob.update({ where: { id }, data: { status, finishedAt: new Date(), summary: { ...event, source, trigger } as object } });
+      } catch { status = "error"; }
+      finally { await release(); }
+      job.status = status;
+      broadcast(job.status === "error" && event.type !== "error" ? { type: "error", message: "Unable to persist sync result" } : event);
+      job.listeners = [];
+      setTimeout(() => jobs.delete(id), 10 * 60_000).unref();
     });
-
-    worker.on("exit", (code) => {
-        if (job.status === "running") {
-            broadcast({
-                type: "error",
-                message: `Worker exited unexpectedly with code ${code}`,
-            });
-            job.status = "error";
-            job.listeners = [];
-            prisma.syncJob
-                .update({
-                    where: { id: jobId },
-                    data: { status: "error", finishedAt: new Date() },
-                })
-                .catch((e: unknown) =>
-                    console.error(
-                        "[sync-manager] Failed to update sync job in DB:",
-                        e,
-                    ),
-                );
-            cleanupJob(jobId);
-        }
-    });
-
-    return jobId;
+    return id;
+  } catch (error) {
+    await prisma.syncJob.updateMany({ where: { id, status: "running" }, data: { status: "error", finishedAt: new Date() } }).catch(() => {});
+    await release();
+    throw error;
+  }
 }
-
-export function getJob(jobId: string): SyncJob | undefined {
-    // Return from in-memory map first (covers active and recently finished jobs)
-    const inMemory = jobs.get(jobId);
-    if (inMemory) return inMemory;
-    return undefined;
-}
-
-export function isJobRunning(): boolean {
-    // Check in-memory map — this is always accurate for the current process lifetime.
-    // Stale DB records from previous restarts are cleaned up on module load above.
-    for (const job of jobs.values()) {
-        if (job.status === "running") return true;
-    }
-    return false;
-}
-
-/** Returns seconds remaining in cooldown, or 0 if cooldown has passed. */
-export function getCooldownSecondsRemaining(): number {
-    if (lastSyncCompletedAt === null) return 0;
-    const elapsed = Date.now() - lastSyncCompletedAt;
-    const remaining = SYNC_COOLDOWN_MS - elapsed;
-    return remaining > 0 ? Math.ceil(remaining / 1000) : 0;
+export async function getJob(id: string): Promise<SyncJob | undefined> {
+  const local = jobs.get(id);
+  if (local) return local;
+  const persisted = await prisma.syncJob.findUnique({ where: { id } });
+  if (!persisted) return undefined;
+  let status = persisted.status as JobStatus;
+  if (status === "running" && !(await isJobRunning())) status = "error";
+  const event = status === "running" ? { type: "waiting", message: "Sync running in another process" }
+    : persisted.summary && typeof persisted.summary === "object" && "type" in persisted.summary
+      ? persisted.summary as SyncEvent : { type: "error", message: "Sync interrupted" };
+  return { id, status, events: [event], listeners: [] };
 }

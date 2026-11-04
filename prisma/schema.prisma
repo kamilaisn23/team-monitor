@@ -33,31 +33,37 @@ enum IssueState {
 }
 
 model TeamMember {
-  id                   String    @id @default(cuid())
-  name                 String
-  usernameGithub       String?   @unique @map("username_github")
-  usernameGitlab       String?   @unique @map("username_gitlab")
-  role                 Role      @default(UNASSIGNED)
-  githubOauthId        String?   @unique @map("github_oauth_id")
-  avatarUrl            String?   @map("avatar_url")
-  isActive             Boolean   @default(true) @map("is_active")
-  createdAt            DateTime  @default(now()) @map("created_at")
-  lastLoginAt          DateTime? @map("last_login_at")
-  kerjabaikEmployeeId  String?   @unique @map("kerjabaik_employee_id")
+  id                  String    @id @default(cuid())
+  name                String
+  usernameGithub      String?   @unique @map("username_github")
+  usernameGitlab      String?   @unique @map("username_gitlab")
+  role                Role      @default(UNASSIGNED)
+  githubOauthId       String?   @unique @map("github_oauth_id")
+  avatarUrl           String?   @map("avatar_url")
+  isActive            Boolean   @default(true) @map("is_active")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  lastLoginAt         DateTime? @map("last_login_at")
+  kerjabaikEmployeeId String?   @unique @map("kerjabaik_employee_id")
 
-  teams          TeamMembership[]
-  createdIssues  Issue[]          @relation("IssueCreator")
-  assignedIssues IssueAssignee[]
+  teams                 TeamMembership[]
+  createdIssues         Issue[]           @relation("IssueCreator")
+  assignedIssues        IssueAssignee[]
+  ownedFollowUps        FollowUp[]        @relation("FollowUpOwner")
+  editedFollowUps       FollowUp[]        @relation("FollowUpActor")
+  ownedFollowUpHistory  FollowUpHistory[] @relation("HistoryOwner")
+  editedFollowUpHistory FollowUpHistory[] @relation("HistoryActor")
+  receivedNotes         OneOnOneNote[]    @relation("NoteMember")
+  authoredNotes         OneOnOneNote[]    @relation("NoteAuthor")
 
   @@map("team_members")
 }
 
 model Team {
-  id                  String   @id @default(cuid())
-  name                String   @unique
-  kerjabaikProjectId  String?  @unique @map("kerjabaik_project_id")
-  isArchived          Boolean  @default(false) @map("is_archived")
-  createdAt           DateTime @default(now()) @map("created_at")
+  id                 String   @id @default(cuid())
+  name               String   @unique
+  kerjabaikProjectId String?  @unique @map("kerjabaik_project_id")
+  isArchived         Boolean  @default(false) @map("is_archived")
+  createdAt          DateTime @default(now()) @map("created_at")
 
   members      TeamMembership[]
   repositories RepositoryTeam[]
@@ -118,6 +124,7 @@ model Issue {
   repository Repository      @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
   creator    TeamMember?     @relation("IssueCreator", fields: [creatorTeamMemberId], references: [id], onDelete: SetNull)
   assignees  IssueAssignee[]
+  followUp   FollowUp?
 
   @@unique([platformId, repositoryId])
   @@index([repositoryId])
@@ -138,6 +145,47 @@ model SyncJob {
   @@map("sync_jobs")
 }
 
+model FollowUp {
+  issueId   String            @id @map("issue_id")
+  status    String            @default("unreviewed")
+  note      String            @default("")
+  ownerId   String?           @map("owner_id")
+  ownerName String?           @map("owner_name")
+  actorId   String?           @map("actor_id")
+  actorName String            @map("actor_name")
+  revision  String
+  updatedAt DateTime          @map("updated_at")
+  issue     Issue             @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  owner     TeamMember?       @relation("FollowUpOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  actor     TeamMember?       @relation("FollowUpActor", fields: [actorId], references: [id], onDelete: SetNull)
+  history   FollowUpHistory[]
+
+  @@index([status, issueId])
+  @@index([ownerId])
+  @@map("follow_ups")
+}
+
+model FollowUpHistory {
+  id        String      @id @default(cuid())
+  issueId   String      @map("issue_id")
+  revision  String
+  status    String
+  note      String
+  ownerId   String?     @map("owner_id")
+  ownerName String?     @map("owner_name")
+  actorId   String?     @map("actor_id")
+  actorName String      @map("actor_name")
+  changedAt DateTime    @map("changed_at")
+  origin    String      @default("edit")
+  followUp  FollowUp    @relation(fields: [issueId], references: [issueId], onDelete: Cascade)
+  owner     TeamMember? @relation("HistoryOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  actor     TeamMember? @relation("HistoryActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@unique([issueId, revision])
+  @@index([issueId, changedAt])
+  @@map("follow_up_history")
+}
+
 model IssueAssignee {
   id               String  @id @default(cuid())
   issueId          String  @map("issue_id")
@@ -151,4 +199,29 @@ model IssueAssignee {
   @@index([teamMemberId])
   @@index([issueId])
   @@map("issue_assignees")
+}
+
+enum OneOnOneSentiment {
+  POSITIVE
+  NEUTRAL
+  NEEDS_SUPPORT
+}
+
+model OneOnOneNote {
+  id          String            @id @default(cuid())
+  memberId    String            @map("member_id")
+  authorId    String?           @map("author_id")
+  authorName  String            @map("author_name")
+  date        DateTime          @default(now())
+  focusArea   String            @default("") @map("focus_area")
+  actionItems String            @default("") @map("action_items")
+  sentiment   OneOnOneSentiment @default(NEUTRAL)
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @default(now()) @updatedAt @map("updated_at")
+
+  member TeamMember  @relation("NoteMember", fields: [memberId], references: [id], onDelete: Cascade)
+  author TeamMember? @relation("NoteAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([memberId, date])
+  @@map("one_on_one_notes")
 }

@@ -18,10 +18,10 @@ export interface GitLabIssue {
 async function fetchGitLabPage(url: string): Promise<{ items: GitLabIssue[]; nextPage: string | null }> {
   const res = await fetch(url, {
     headers: { 'PRIVATE-TOKEN': GITLAB_GROUP_TOKEN },
+    signal: AbortSignal.timeout(30_000),
   })
   if (!res.ok) {
-    console.error(`[gitlab] Request failed: ${res.status} ${await res.text()}`)
-    return { items: [], nextPage: null }
+    throw new Error(`GitLab issue request failed (HTTP ${res.status})`)
   }
   const items = await res.json() as GitLabIssue[]
   const nextPage = res.headers.get('X-Next-Page')
@@ -82,6 +82,7 @@ export async function getProjectUrl(projectId: number): Promise<string> {
   if (projectUrlCache.has(projectId)) return projectUrlCache.get(projectId)!
   const res = await fetch(`${GITLAB_BASE_URL}/api/v4/projects/${projectId}`, {
     headers: { 'PRIVATE-TOKEN': GITLAB_GROUP_TOKEN },
+    signal: AbortSignal.timeout(30_000),
   })
   if (!res.ok) return `${GITLAB_BASE_URL}/projects/${projectId}`
   const data = await res.json() as { web_url: string }

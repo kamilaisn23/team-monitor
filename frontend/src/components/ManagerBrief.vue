@@ -7,11 +7,13 @@ const props = defineProps<{
   response?: DashboardResponse;
   loading: boolean;
   scope: string;
+  canReview?: boolean;
 }>();
 const emit = defineEmits<{
   review: [];
   workload: [];
   issue: [issue: DashboardIssue];
+  attention: [];
 }>();
 const summary = computed(() => props.response?.summary);
 const headline = computed(() => {
@@ -79,6 +81,7 @@ const headline = computed(() => {
         </component>
       </div>
       <p class="brief-attention-note"><Icon name="alert" :size="14" />Usia dihitung sejak isu dibuat, bukan sejak aktivitas terakhir.</p>
+      <button v-if="canReview" class="button secondary attention-open-button" aria-label="Buka pusat perhatian tim" @click="emit('attention')"><Icon name="target" :size="16" />Buka pusat perhatian<Icon name="right" :size="16" /></button>
     </div>
   </section>
 </template>

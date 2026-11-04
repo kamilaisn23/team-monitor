@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getWorkloadLevel, getWorkloadThresholds } from "@/lib/settings";
-import { isAdminRole } from "@/lib/session";
+import { canReadWorkspace, memberReadScope } from "@/lib/read-access";
 import { dashboardIssue, dashboardIssueSelect } from "@/lib/dashboard-issues";
+import { dashboardTrends, WEEK_MS } from "@/lib/dashboard-trends";
 
 type SortCol = "name" | "role" | "currentLoad" | "workloadLevel";
 type SortDir = "asc" | "desc";
@@ -12,12 +13,7 @@ export async function GET(req: NextRequest) {
     const session = await auth();
     if (!session)
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const role = session.user.role;
-    if (
-        !isAdminRole(session) &&
-        role !== "MANAGER" &&
-        role !== "DEVELOPER"
-    ) {
+    if (!canReadWorkspace(session)) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -53,6 +49,7 @@ export async function GET(req: NextRequest) {
     };
 
     const memberWhere = {
+        ...memberReadScope(session),
         role: { not: "UNASSIGNED" as const },
         ...(teamId ? { teams: { some: { teamId } } } : {}),
         ...(activeParam !== null ? { isActive: activeParam === "true" } : {}),
@@ -89,7 +86,14 @@ export async function GET(req: NextRequest) {
         const rawIssueLimit = Number(searchParams.get("issueLimit"));
         const issuePage = Math.max(1, Number.isFinite(rawIssuePage) ? Math.trunc(rawIssuePage) || 1 : 1);
         const issueLimit = Math.min(100, Math.max(1, Number.isFinite(rawIssueLimit) ? Math.trunc(rawIssueLimit) || 20 : 20));
-        const where = issueView === "stale" ? staleIssueWhere : openIssueWhere;
+        const assigneeId = searchParams.get("assigneeId");
+        if (assigneeId && !memberIdSet.has(assigneeId)) {
+            return NextResponse.json({ data: [], total: 0, page: issuePage, limit: issueLimit });
+        }
+        const baseWhere = issueView === "stale" ? staleIssueWhere : openIssueWhere;
+        const where = assigneeId
+            ? { ...baseWhere, assignees: { some: { teamMemberId: assigneeId } } }
+            : baseWhere;
         const [total, issues] = await Promise.all([
             prisma.issue.count({ where }),
             prisma.issue.findMany({
@@ -157,7 +161,7 @@ export async function GET(req: NextRequest) {
             : String(bv).localeCompare(String(av));
     });
 
-    const [totalOpenIssues, staleIssues, resolvedLast7Days, attentionIssues] = await Promise.all([
+    const [totalOpenIssues, staleIssues, resolvedLast7Days, attentionIssues, trendIssues] = await Promise.all([
         prisma.issue.count({ where: openIssueWhere }),
         prisma.issue.count({ where: staleIssueWhere }),
         prisma.issue.count({ where: {
@@ -170,6 +174,17 @@ export async function GET(req: NextRequest) {
             select: dashboardIssueSelect,
             orderBy: [{ createdAt: "asc" }, { id: "asc" }],
             take: 3,
+        }),
+        prisma.issue.findMany({
+            where: {
+                ...openIssueWhere,
+                state: { in: ["OPEN", "CLOSED"] },
+                OR: [
+                    { createdAt: { gte: new Date(now.getTime() - 4 * WEEK_MS), lte: now } },
+                    { closedAt: { gte: new Date(now.getTime() - 4 * WEEK_MS), lte: now } },
+                ],
+            },
+            select: { createdAt: true, closedAt: true },
         }),
     ]);
     const distribution = { low: 0, medium: 0, high: 0 };
@@ -198,5 +213,5 @@ export async function GET(req: NextRequest) {
         : allData;
     const total = filteredData.length;
     const data = filteredData.slice(skip, skip + limit);
-    return NextResponse.json({ total, data, summary, thresholds, attentionIssues: attentionIssues.map((issue) => dashboardIssue(issue, memberIdSet, now)), teamOverview: Array.from(teamMap.values()) });
+    return NextResponse.json({ total, data, summary, thresholds, trends: dashboardTrends(trendIssues, now), attentionIssues: attentionIssues.map((issue) => dashboardIssue(issue, memberIdSet, now)), teamOverview: Array.from(teamMap.values()) });
 }
