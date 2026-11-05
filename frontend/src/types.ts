@@ -115,7 +115,7 @@ export interface RebalanceResult {
   internalOnly: boolean;
 }
 export const roleLabels: Record<string, string> = {
-  SUPERADMIN: "Superadmin",
+  SUPERADMIN: "Admin",
   ADMIN: "Admin",
   MANAGER: "Manager",
   DEVELOPER: "Developer",

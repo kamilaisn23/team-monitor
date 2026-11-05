@@ -7,6 +7,16 @@ import {
   previewMembers,
 } from "../../src/lib/preview-data";
 
+export type ViewRole = "ADMIN" | "MANAGER" | "DEVELOPER" | "";
+export const viewRoleOptions = ["ADMIN", "MANAGER", "DEVELOPER"] as const;
+const viewAsStorageKey = "team-monitor:view-as";
+function storedViewAs(): ViewRole {
+  if (typeof window === "undefined") return "";
+  const value = window.localStorage.getItem(viewAsStorageKey);
+  return value === "ADMIN" || value === "MANAGER" || value === "DEVELOPER"
+    ? value
+    : "";
+}
 export const workspace = reactive({
   preview: false,
   ready: false,
@@ -20,21 +30,45 @@ export const workspace = reactive({
   syncing: false,
   lastSyncedAt: null as string | null,
   refreshKey: 0,
+  viewAs: storedViewAs() as ViewRole,
 });
-export const isAdmin = computed(
+export const isRealAdmin = computed(
   () =>
     !!workspace.session &&
     (workspace.session.user.isSuperadmin ||
       ["ADMIN", "SUPERADMIN"].includes(workspace.session.user.role)),
 );
+export const effectiveRole = computed(() => {
+  if (!workspace.session) return "";
+  if (!isRealAdmin.value) {
+    return workspace.session.user.role === "SUPERADMIN"
+      ? "ADMIN"
+      : workspace.session.user.role;
+  }
+  return workspace.viewAs || "ADMIN";
+});
+export const isAdmin = computed(
+  () => isRealAdmin.value && effectiveRole.value === "ADMIN",
+);
+export const isManager = computed(
+  () => isAdmin.value || effectiveRole.value === "MANAGER",
+);
 export const canManage = computed(
   () =>
     isAdmin.value && !workspace.config.kerjabaikEnabled && !workspace.preview,
 );
-export const isDeveloper = computed(() => !workspace.preview && !isAdmin.value && workspace.session?.user.role === 'DEVELOPER');
-export const canSettings = computed(
-  () => workspace.preview || !!workspace.session?.user.isSuperadmin,
+export const isDeveloper = computed(
+  () => !workspace.preview && effectiveRole.value === "DEVELOPER",
 );
+export const canSettings = computed(
+  () => workspace.preview || isAdmin.value,
+);
+export function setViewAs(role: ViewRole) {
+  workspace.viewAs = role;
+  if (typeof window === "undefined") return;
+  if (role) window.localStorage.setItem(viewAsStorageKey, role);
+  else window.localStorage.removeItem(viewAsStorageKey);
+}
 export function notify(message: string, type = "success") {
   workspace.notice = message;
   workspace.noticeType = type;
@@ -45,6 +79,7 @@ export async function bootstrap() {
     bootstrapPromise = (async () => {
       workspace.config = await api<typeof workspace.config>("/api/ui-config");
       workspace.session = await api<Session | null>("/api/auth/session");
+      if (!isRealAdmin.value) setViewAs("");
       workspace.ready = true;
     })().catch((error) => {
       bootstrapPromise = undefined;
@@ -101,6 +136,7 @@ export async function signOut() {
   });
   if (!response.ok) throw new Error("Keluar gagal. Silakan coba kembali.");
   workspace.session = null;
+  setViewAs("");
   bootstrapPromise = undefined;
   window.location.assign("/login");
 }

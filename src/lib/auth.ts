@@ -10,6 +10,15 @@ if (process.env.AUTH_SECRET === "generate-a-random-secret-here") {
     );
 }
 
+function isSuperadminLogin(login: string | undefined) {
+    if (!login) return false;
+    return (process.env.SUPERADMIN_GITHUB_USERNAME ?? "")
+        .split(",")
+        .map((entry) => entry.trim().toLowerCase())
+        .filter(Boolean)
+        .includes(login.toLowerCase());
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
     trustHost: true,
     providers: [
@@ -23,7 +32,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             if (!login) return false;
 
             // Superadmin check — no DB write
-            if (login === process.env.SUPERADMIN_GITHUB_USERNAME) return true;
+            if (isSuperadminLogin(login)) return true;
 
             const avatarUrl =
                 typeof profile?.avatar_url === "string"
@@ -70,7 +79,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             // Always re-read from DB so role changes are picked up on next sign-in
             // or explicit session refresh (trigger === 'update')
             if (profile || trigger === "update" || !token.role) {
-                if (login === process.env.SUPERADMIN_GITHUB_USERNAME) {
+                if (isSuperadminLogin(login)) {
                     token.role = "SUPERADMIN";
                     token.isSuperadmin = true;
                     token.memberId = undefined;

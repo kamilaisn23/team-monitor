@@ -88,55 +88,101 @@ async function save() {
     <div v-if="loading" class="loading-state">Memuat pengaturan…</div>
     <div v-else class="settings-grid">
       <section class="surface settings-panel">
-        <div class="eyebrow">YOUR WORKLOAD RULES</div>
-        <h2>Definisikan kapasitas</h2>
-        <p>Jumlah isu terbuka menentukan kategori beban anggota.</p>
-        <div class="setting-field">
-          <label for="low-max"
-            ><span class="level-dot low"></span>Batas beban ringan<small
-              >Anggota dengan isu sampai angka ini masuk kategori ringan.</small
-            ></label
-          >
+        <div class="settings-panel-head">
           <div>
-            <input
-              id="low-max"
-              v-model.number="thresholds.lowMax"
-              type="number"
-              min="1"
-              step="1"
-            /><span>isu</span>
+            <div class="eyebrow">YOUR WORKLOAD RULES</div>
+            <h2>Definisikan kapasitas</h2>
+            <p>Jumlah isu terbuka menentukan kategori beban anggota.</p>
           </div>
-        </div>
-        <div class="setting-field">
-          <label for="medium-max"
-            ><span class="level-dot medium"></span>Batas beban sedang<small
-              >Di atas batas ringan, sampai angka ini.</small
-            ></label
+          <span class="settings-role-chip"
+            ><Icon name="shield" :size="14" />Khusus Admin</span
           >
-          <div>
-            <input
-              id="medium-max"
-              v-model.number="thresholds.mediumMax"
-              type="number"
-              min="2"
-              step="1"
-            /><span>isu</span>
+        </div>
+        <div class="settings-band-grid">
+          <div class="settings-band low">
+            <div class="settings-band-head">
+              <span>Beban ringan</span
+              ><span class="settings-band-pill"
+                >≤ {{ thresholds.lowMax }} isu</span
+              >
+            </div>
+            <p>
+              Anggota dengan isu sampai angka ini masuk kategori ringan dan
+              punya kapasitas untuk tugas baru.
+            </p>
+            <div class="setting-field">
+              <label for="low-max">Batas beban ringan</label>
+              <div>
+                <input
+                  id="low-max"
+                  v-model.number="thresholds.lowMax"
+                  type="number"
+                  min="1"
+                  step="1"
+                /><span>isu</span>
+              </div>
+            </div>
           </div>
-        </div>
-        <div class="setting-field">
-          <label for="stale-days"
-            ><Icon name="clock" :size="16" />Usia isu mengendap<small
-              >Isu terbuka yang lebih tua akan ditandai.</small
-            ></label
-          >
-          <div>
-            <input
-              id="stale-days"
-              v-model.number="thresholds.staleDays"
-              type="number"
-              min="1"
-              step="1"
-            /><span>hari</span>
+          <div class="settings-band medium">
+            <div class="settings-band-head">
+              <span>Beban sedang</span
+              ><span class="settings-band-pill"
+                >{{ thresholds.lowMax + 1 }}–{{ thresholds.mediumMax }}
+                isu</span
+              >
+            </div>
+            <p>
+              Di atas batas ringan sampai angka ini, kapasitas dinilai optimal
+              untuk ritme kerja standar.
+            </p>
+            <div class="setting-field">
+              <label for="medium-max">Batas beban sedang</label>
+              <div>
+                <input
+                  id="medium-max"
+                  v-model.number="thresholds.mediumMax"
+                  type="number"
+                  min="2"
+                  step="1"
+                /><span>isu</span>
+              </div>
+            </div>
+          </div>
+          <div class="settings-band high">
+            <div class="settings-band-head">
+              <span>Beban tinggi</span
+              ><span class="settings-band-pill"
+                >&gt; {{ thresholds.mediumMax }} isu</span
+              >
+            </div>
+            <p>
+              Peringatan potensi kelelahan atau hambatan review pull request.
+              Kategori ini dihitung otomatis dari batas sedang.
+            </p>
+          </div>
+          <div class="settings-band stale">
+            <div class="settings-band-head">
+              <span>Usia isu mengendap</span
+              ><span class="settings-band-pill"
+                >{{ thresholds.staleDays }} hari</span
+              >
+            </div>
+            <div class="setting-field">
+              <label for="stale-days"
+                ><Icon name="clock" :size="16" />Usia isu mengendap<small
+                  >Isu terbuka yang lebih tua akan ditandai.</small
+                ></label
+              >
+              <div>
+                <input
+                  id="stale-days"
+                  v-model.number="thresholds.staleDays"
+                  type="number"
+                  min="1"
+                  step="1"
+                /><span>hari</span>
+              </div>
+            </div>
           </div>
         </div>
         <p v-if="!valid" class="validation-error" role="alert">

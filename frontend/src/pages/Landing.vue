@@ -28,7 +28,6 @@ function openFullLogin() {
         </RouterLink>
 
         <nav class="lp-nav-links" aria-label="Navigasi halaman">
-          <a href="#arsitektur-rbac">Arsitektur RBAC</a>
           <a href="#fitur">Fitur</a>
           <a href="#cockpit">Simulator Beban</a>
           <a href="#perbandingan">Perbandingan</a>
@@ -77,12 +76,9 @@ function openFullLogin() {
         </svg>
 
         <div class="lp-container lp-hero-inner">
-          <span class="lp-kicker">
-            <i></i> Sistem pemantauan terintegrasi GitHub &amp; GitLab
-          </span>
           <h1>
-            Visibilitas aktivitas rekayasawan
-            <span>objektif &amp; seimbang</span>
+            Sistem pemantauan terintegrasi
+            <span>GitHub &amp; GitLab</span>
           </h1>
           <p class="lp-hero-lead">
             Platform monitoring rekayasa perangkat lunak dengan peran
@@ -262,7 +258,7 @@ function openFullLogin() {
         </div>
       </section>
 
-      <section id="arsitektur-rbac" class="lp-section white">
+      <section v-if="false" id="arsitektur-rbac" class="lp-section white">
         <div class="lp-container">
           <div class="lp-section-heading">
             <span>Arsitektur &amp; hak akses sistem</span>
@@ -623,7 +619,15 @@ function openFullLogin() {
   letter-spacing: -2.2px;
   font-weight: 850;
 }
-.lp-hero h1 span { color: #4368ed; }
+.lp-hero h1 span {
+  display: block;
+  margin-top: 4px;
+  background: linear-gradient(110deg, #2563eb, #4368ed 55%, #6366f1);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: #4368ed;
+}
 .lp-hero-lead {
   max-width: 800px;
   margin: 20px auto 0;

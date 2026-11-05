@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router";
-import { bootstrap, loadWorkspace, workspace, notify } from "./state";
+import { bootstrap, loadWorkspace, workspace, notify, effectiveRole, isAdmin, isRealAdmin } from "./state";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -81,20 +81,11 @@ router.beforeEach(async (to, from) => {
       : true;
   if (!workspace.session) return "/login";
   const user = workspace.session.user;
-  if (!user.isSuperadmin && user.role === 'DEVELOPER' && to.path.startsWith('/members/') && to.params.id !== user.id)
-    return user.id ? '/members/' + user.id : '/dashboard';
-  if (
-    user.role === "UNASSIGNED" &&
-    !user.isSuperadmin &&
-    to.path !== "/pending"
-  )
+  if (!isRealAdmin.value && effectiveRole.value === "DEVELOPER" && to.path.startsWith("/members/") && to.params.id !== user.id)
+    return user.id ? "/members/" + user.id : "/dashboard";
+  if (effectiveRole.value === "UNASSIGNED" && to.path !== "/pending")
     return "/pending";
-  if (
-    (to.meta.admin &&
-      !user.isSuperadmin &&
-      !["ADMIN", "SUPERADMIN"].includes(user.role)) ||
-    (to.meta.superadmin && !user.isSuperadmin)
-  )
+  if ((to.meta.admin || to.meta.superadmin) && !isAdmin.value)
     return "/dashboard";
   if (
     !to.meta.public &&

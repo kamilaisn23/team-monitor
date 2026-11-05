@@ -2,7 +2,7 @@
 import { computed, reactive, ref, watch } from "vue";
 import Icon from "./Icon.vue";
 import { api } from "../api";
-import { notify, workspace } from "../state";
+import { notify, workspace, isAdmin, effectiveRole } from "../state";
 import {
   oneOnOneSentiments,
   sentimentLabels,
@@ -29,8 +29,8 @@ const draft = reactive({
 const isManager = computed(
   () =>
     workspace.preview ||
-    !!workspace.session?.user.isSuperadmin ||
-    ["ADMIN", "SUPERADMIN", "MANAGER"].includes(workspace.session?.user.role || ""),
+    isAdmin.value ||
+    effectiveRole.value === "MANAGER",
 );
 const canWrite = computed(
   () =>

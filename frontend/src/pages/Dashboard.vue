@@ -17,7 +17,7 @@ import AttentionCenter from "../components/AttentionCenter.vue";
 import RebalanceModal from "../components/RebalanceModal.vue";
 import type { DashboardFilters } from "../dashboard-filters";
 import { api, query } from "../api";
-import { workspace, isDeveloper } from "../state";
+import { workspace, isDeveloper, isAdmin, isManager } from "../state";
 import { sectionHref } from "../router";
 import {
   levelLabels,
@@ -56,7 +56,7 @@ const issuePage = ref(1), issueLoading = ref(false), issueError = ref("");
 const attentionOpen = ref(false);
 const rebalanceOpen = ref(false);
 const playbookOpen = ref(false);
-const canReview = computed(() => workspace.preview || workspace.session?.user.isSuperadmin || ['ADMIN', 'MANAGER'].includes(workspace.session?.user.role || ''));
+const canReview = computed(() => workspace.preview || isManager.value);
 const currentFilters = computed<DashboardFilters>(() => ({
   teamId: workspace.teamId, name: name.value, active: active.value, workload: workload.value,
   platform: platform.value, repositoryId: repositoryId.value, sortCol: sortCol.value, sortDir: sortDir.value, view: view.value,
@@ -206,7 +206,7 @@ const scopeName = computed(
       @reports="router.push(sectionHref('reports'))"
       @playbook="playbookOpen = true"
     />
-    <p v-if="isDeveloper" class="info-banner"><Icon name="shield" :size="17" />Anda hanya melihat data pribadi. Filter tim tidak memperluas akses ke pekerjaan anggota lain.</p>
+    <p v-if="isDeveloper" class="info-banner"><Icon name="shield" :size="17" />{{ workspace.viewAs === 'DEVELOPER' ? 'Pratinjau tampilan Developer. Data tetap lengkap karena akun Anda Admin.' : 'Anda hanya melihat data pribadi. Filter tim tidak memperluas akses ke pekerjaan anggota lain.' }}</p>
     <div v-if="error" class="error-banner" role="alert">
       <Icon name="alert" />{{ error }}<button @click="load">Coba lagi</button>
     </div>
@@ -326,11 +326,7 @@ const scopeName = computed(
             class="icon-button"
             aria-label="Buka direktori tim"
             @click="router.push(sectionHref('teams'))"
-            v-if="
-              workspace.preview ||
-              workspace.session?.user.isSuperadmin ||
-              workspace.session?.user.role === 'ADMIN'
-            "
+            v-if="workspace.preview || isAdmin"
           >
             <Icon name="arrow" />
           </button>

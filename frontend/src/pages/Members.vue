@@ -47,12 +47,22 @@ const filtered = computed(() =>
       (!role.value || member.role === role.value),
   ),
 );
+const unassignedMembers = computed(() =>
+  members.value.filter((member) => member.role === "UNASSIGNED"),
+);
+const firstUnassignedId = computed(() => unassignedMembers.value[0]?.id || "");
 const visible = computed(() =>
   filtered.value.slice((page.value - 1) * 12, page.value * 12),
 );
 watch([search, status, role, () => workspace.teamId], () => {
   page.value = 1;
 });
+function roleTone(role: string) {
+  if (role === "ADMIN" || role === "SUPERADMIN") return "role-admin";
+  if (role === "MANAGER") return "role-manager";
+  if (role === "DEVELOPER") return "role-developer";
+  return "role-unassigned";
+}
 function open(member: Member) {
   if (workspace.preview) selected.value = member.id;
   else router.push("/members/" + member.id);
@@ -76,8 +86,12 @@ async function remove() {
   <div class="page-content">
     <PageHeading
       eyebrow="THE PEOPLE BEHIND THE WORK"
-      title="Kenali tim Anda"
-      description="Seluruh anggota, peran, dan keanggotaan tim dalam satu direktori."
+      :title="canManage ? 'Manajemen anggota' : 'Kenali tim Anda'"
+      :description="
+        canManage
+          ? 'Kelola akun GitHub/GitLab, peran, status, dan keanggotaan tim.'
+          : 'Seluruh anggota, peran, dan keanggotaan tim dalam satu direktori.'
+      "
       ><RouterLink
         v-if="canManage"
         class="button primary"
@@ -87,6 +101,27 @@ async function remove() {
         ><Icon name="users" :size="17" />{{ members.length }} anggota</span
       ></PageHeading
     >
+    <section
+      v-if="unassignedMembers.length"
+      class="pending-approval-banner"
+      aria-label="Akun menunggu akses"
+    >
+      <span class="pending-approval-icon"><Icon name="clock" :size="20" /></span>
+      <div class="pending-approval-copy">
+        <h2>{{ unassignedMembers.length }} akun menunggu akses</h2>
+        <p>Pilih role dan tim agar pengguna baru dapat masuk ke workspace.</p>
+      </div>
+      <RouterLink
+        v-if="canManage && firstUnassignedId"
+        class="button pending-approval-action"
+        :to="'/admin/members/' + firstUnassignedId + '/edit'"
+      >
+        <Icon name="usercheck" :size="16" />Tinjau akun
+      </RouterLink>
+      <span v-else-if="!workspace.preview" class="pending-approval-locked">
+        Data anggota dikelola melalui Kerjabaik.
+      </span>
+    </section>
     <div v-if="error" class="error-banner" role="alert">
       <Icon name="alert" />{{ error }}<button @click="load">Coba lagi</button>
     </div>
@@ -154,6 +189,7 @@ async function remove() {
             v-for="member in visible"
             :key="member.id"
             class="member-card member-card-managed"
+            :class="{ 'pending-member-card': member.role === 'UNASSIGNED' }"
           >
             <button
               class="card-content-button"
@@ -168,12 +204,27 @@ async function remove() {
                 >
               </div>
               <h3>{{ member.name }}</h3>
-              <p>{{ roleLabels[member.role] }}</p>
+              <p>
+                <span class="badge" :class="roleTone(member.role)">{{
+                  roleLabels[member.role]
+                }}</span>
+              </p>
               <div class="member-card-teams">
                 {{
                   member.teams.map((team) => team.name).join(" · ") ||
                   "Belum bergabung dengan tim"
                 }}
+              </div>
+              <div
+                v-if="member.usernameGithub || member.usernameGitlab"
+                class="member-accounts"
+              >
+                <span v-if="member.usernameGithub"
+                  ><Icon name="github" :size="13" />@{{ member.usernameGithub }}</span
+                >
+                <span v-if="member.usernameGitlab"
+                  ><Icon name="file" :size="13" />@{{ member.usernameGitlab }}</span
+                >
               </div>
               <div class="member-card-bottom">
                 <span>Lihat profil anggota</span
@@ -184,7 +235,13 @@ async function remove() {
               <RouterLink
                 :to="'/admin/members/' + member.id + '/edit'"
                 class="text-button"
-                ><Icon name="edit" :size="15" />Edit</RouterLink
+                :class="{ 'pending-role-action': member.role === 'UNASSIGNED' }"
+                ><Icon
+                  :name="member.role === 'UNASSIGNED' ? 'usercheck' : 'edit'"
+                  :size="15"
+                />{{
+                  member.role === 'UNASSIGNED' ? 'Beri role & tim' : 'Edit'
+                }}</RouterLink
               ><button
                 class="text-button danger-text"
                 :aria-label="'Hapus ' + member.name"
@@ -202,6 +259,8 @@ async function remove() {
                 <th>Anggota</th>
                 <th>Peran</th>
                 <th>Tim</th>
+                <th>GitHub</th>
+                <th>GitLab</th>
                 <th>Status</th>
                 <th>Aksi</th>
               </tr>
@@ -217,12 +276,26 @@ async function remove() {
                   </button>
                 </td>
                 <td>
-                  <span class="badge neutral">{{
+                  <span class="badge" :class="roleTone(member.role)">{{
                     roleLabels[member.role]
                   }}</span>
                 </td>
                 <td>
                   {{ member.teams.map((team) => team.name).join(" · ") || "—" }}
+                </td>
+                <td>
+                  <span v-if="member.usernameGithub" class="account-cell"
+                    ><Icon name="github" :size="13" />@{{
+                      member.usernameGithub
+                    }}</span
+                  ><span v-else class="account-cell muted">—</span>
+                </td>
+                <td>
+                  <span v-if="member.usernameGitlab" class="account-cell"
+                    ><Icon name="file" :size="13" />@{{
+                      member.usernameGitlab
+                    }}</span
+                  ><span v-else class="account-cell muted">—</span>
                 </td>
                 <td>
                   <span
@@ -295,3 +368,71 @@ async function remove() {
     >
   </div>
 </template>
+<style scoped>
+.pending-approval-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 15px 18px;
+  border: 1px solid #ead59e;
+  border-radius: 13px;
+  background: linear-gradient(110deg, #fff9e8, #fffdf7);
+}
+.pending-approval-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  border: 1px solid #f0dfa9;
+  border-radius: 11px;
+  background: #fff1c7;
+  color: #a56b14;
+}
+.pending-approval-copy {
+  flex: 1;
+  min-width: 0;
+}
+.pending-approval-copy h2 {
+  color: #73500f;
+  font-size: 13px;
+  font-weight: 750;
+}
+.pending-approval-copy p {
+  margin-top: 3px;
+  color: #84682d;
+  font-size: 11px;
+  line-height: 1.55;
+}
+.pending-approval-banner .pending-approval-action {
+  flex: 0 0 auto;
+  border-color: #a96b12;
+  background: #b97818;
+  color: #fff;
+}
+.pending-approval-banner .pending-approval-action:hover {
+  background: #9e6410;
+}
+.pending-approval-locked {
+  color: #826b3d;
+  font-size: 11px;
+  font-weight: 650;
+}
+.pending-member-card {
+  border-color: #ead59e;
+  background: #fffdf8;
+}
+.pending-role-action {
+  color: #8d610e;
+  font-weight: 750;
+}
+@media (max-width: 600px) {
+  .pending-approval-banner {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .pending-approval-banner .pending-approval-action {
+    margin-left: 56px;
+  }
+}
+</style>
