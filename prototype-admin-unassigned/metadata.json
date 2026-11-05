@@ -1,0 +1,8 @@
+{
+  "name": "Team Monitor - Monitoring & Manajemen Tim Engineering",
+  "description": "Platform pemantauan kinerja, manajemen anggota, tim, repositori, dan sinkronisasi GitHub/GitLab untuk Superadmin, Admin, Manager, dan Developer.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
