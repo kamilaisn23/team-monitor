@@ -39,7 +39,9 @@ const matchIssue = (issue, where) => {
     (!repo.id || issue.repository.id === repo.id) &&
     (!repo.platform || issue.repository.platform === repo.platform) &&
     issue.memberIds.some((id) =>
-      where.assignees.some.teamMemberId.in.includes(id),
+      typeof where.assignees.some.teamMemberId === "string"
+        ? id === where.assignees.some.teamMemberId
+        : where.assignees.some.teamMemberId.in.includes(id),
     ) &&
     (!where.createdAt || issue.createdAt < where.createdAt.lt) &&
     (!where.closedAt || (issue.closedAt >= where.closedAt.gte && issue.closedAt <= where.closedAt.lte)) &&
@@ -206,6 +208,10 @@ assert.equal((await get("issueView=stale&platform=gitlab")).body.total, 0);
 assert.equal((await get("issueView=stale&name=missing")).body.total, 0);
 assert.equal((await get("issueView=open&issuePage=Infinity&issueLimit=Infinity")).body.page, 1);
 assert.equal((await get("issueView=open&issuePage=-2&issueLimit=1000")).body.limit, 100);
+assert.equal((await get("issueView=open&assigneeId=m1")).body.total, 2);
+assert.equal((await get("issueView=stale&assigneeId=m1")).body.total, 2);
+assert.equal((await get("issueView=open&assigneeId=m5")).body.total, 0);
+assert.equal((await get("issueView=open&assigneeId=missing")).body.total, 0);
 globalThis.__dashboardSmoke.thresholds.staleDays = 50;
 assert.equal((await get()).body.summary.staleIssues, 0);
 assert.equal((await get()).body.attentionIssues.length, 0);
@@ -224,6 +230,7 @@ assert.equal((await get()).body.total, 1);
 assert.deepEqual((await get()).body.data.map(member => member.memberId), ['m0']);
 assert.equal((await get('teamId=b')).body.summary.memberCount, 0, 'Team query cannot broaden developer scope');
 assert.equal((await get('name=Member%2001')).body.total, 0);
+assert.equal((await get('issueView=open&assigneeId=m1')).body.total, 0, 'Assignee filter cannot broaden developer scope');
 session.user.id = undefined;
 assert.equal((await get()).status, 403);
 session = null;

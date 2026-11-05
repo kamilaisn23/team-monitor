@@ -9,6 +9,7 @@ export interface FollowUp {
   status: FollowUpStatus;
   note: string;
   ownerId: string | null;
+  ownerName?: string | null;
   revision: string | null;
   updatedAt: string | null;
   updatedBy: string | null;
@@ -36,7 +37,7 @@ export function parseFollowUp(value: string): FollowUp {
       !(data.ownerId === null || typeof data.ownerId === "string") ||
       typeof data.revision !== "string" || typeof data.updatedAt !== "string" || typeof data.updatedBy !== "string" ||
       data.note.length > 2000 || !Number.isFinite(Date.parse(data.updatedAt))) return emptyFollowUp();
-    return { status: data.status, note: data.note, ownerId: data.ownerId, revision: data.revision, updatedAt: data.updatedAt, updatedBy: data.updatedBy };
+    return { status: data.status, note: data.note, ownerId: data.ownerId, ownerName: typeof data.ownerName === 'string' ? data.ownerName : null, revision: data.revision, updatedAt: data.updatedAt, updatedBy: data.updatedBy };
   } catch { return emptyFollowUp(); }
 }
 export function validFollowUpInput(data: unknown): data is Pick<FollowUp, "status" | "note" | "ownerId"> & { expectedRevision: string | null } {

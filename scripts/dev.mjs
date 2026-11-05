@@ -3,6 +3,8 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const FRONTEND_PORT = process.env.FRONTEND_PORT || "3000";
+const PORT = process.env.PORT || "3001";
 const workerBuild = spawn(process.execPath, [path.join(root, "scripts/build-worker.mjs")], {
   cwd: root,
   stdio: "inherit",
@@ -24,7 +26,7 @@ const children = [
       "dev",
       "--webpack",
       "--port",
-      "3001",
+      PORT,
     ],
     { cwd: root, stdio: "inherit", env: serverEnv },
   ),
@@ -34,8 +36,12 @@ const children = [
       path.join(root, "node_modules/vite/bin/vite.js"),
       "--config",
       "frontend/vite.config.ts",
+      "--port",
+      FRONTEND_PORT,
+      "--host",
+      "0.0.0.0",
     ],
-    { cwd: root, stdio: "inherit" },
+    { cwd: root, stdio: "inherit", env: { ...process.env, VITE_API_TARGET: `http://127.0.0.1:${PORT}` } },
   ),
 ];
 let closing = false;

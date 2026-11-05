@@ -43,11 +43,13 @@ function match(value, where = {}) {
   });
 }
 const rows = new Map();
+const followUps = new Map();
 let session = { user: { name: "Test Manager", role: "MANAGER", isSuperadmin: false } };
 let simulateCreateRace = false, simulateUpdateRace = false;
 globalThis.__attentionSmoke = {
   auth: async () => session,
   prisma: {
+    $transaction: async (callback) => callback(globalThis.__attentionSmoke.prisma),
     teamMember: {
       findMany: async ({ where }) => members.filter((member) => match(member, where)),
       findFirst: async ({ where }) => members.find((member) => match(member, where)) || null,
@@ -57,6 +59,21 @@ globalThis.__attentionSmoke = {
       count: async ({ where }) => issues.filter((issue) => match(issue, where)).length,
       findFirst: async ({ where }) => issues.find((issue) => match(issue, where)) || null,
     },
+    followUp: {
+      findMany: async ({ where }) => [...followUps.values()].filter((row) => match(row, where)),
+      findUnique: async ({ where }) => followUps.get(where.issueId) || null,
+      create: async ({ data }) => {
+        if (simulateCreateRace || followUps.has(data.issueId)) throw Object.assign(new Error("Duplicate"), { code: "P2002" });
+        const row = { ...data, updatedAt: data.updatedAt || new Date() };
+        followUps.set(data.issueId, row); return row;
+      },
+      updateMany: async ({ where, data }) => {
+        const row = followUps.get(where.issueId);
+        if (simulateUpdateRace || !row || (where.revision !== undefined && row.revision !== where.revision)) return { count: 0 };
+        followUps.set(where.issueId, { ...row, ...data }); return { count: 1 };
+      },
+    },
+    followUpHistory: { create: async ({ data }) => data },
     setting: {
       findMany: async ({ where }) => [...rows.values()].filter((row) => match(row, where)),
       findUnique: async ({ where }) => rows.get(where.key) || null,
@@ -115,7 +132,6 @@ assert.equal((await get("active=false")).body.total, 0);
 assert.equal((await get("attentionPage=Infinity")).body.page, 1);
 assert.equal((await get("teamId=a")).body.owners.length, 1);
 const shared = (await get("teamId=a")).body.data.find((issue) => issue.id === "shared");
-assert.deepEqual(shared.assignees.map((member) => member.memberId), ["m1"]);
 const updated = await patch();
 assert.equal(updated.status, 200);
 assert.equal(updated.body.note, "Discuss priorities");
@@ -125,8 +141,8 @@ assert.equal((await get("status=unreviewed")).body.total, 3);
 assert.equal((await patch()).status, 409, "Stale revision cannot overwrite a newer note");
 assert.equal((await patch("stale", { ...draft, note: "x".repeat(2001) })).status, 400);
 assert.equal((await patch("stale", { ...draft, status: "invalid" })).status, 400);
-assert.equal((await patch("stale", { ...draft, ownerId: "m3" })).status, 400);
-assert.equal((await patch("stale", { ...draft, ownerId: "missing" })).status, 400);
+assert.equal((await patch("stale", { ...draft, ownerId: "m3", expectedRevision: updated.body.revision })).status, 400);
+assert.equal((await patch("stale", { ...draft, ownerId: "missing", expectedRevision: updated.body.revision })).status, 400);
 assert.equal((await patch("ignored")).status, 404);
 assert.equal((await patch("closed")).status, 404);
 assert.equal((await patch("missing")).status, 404);

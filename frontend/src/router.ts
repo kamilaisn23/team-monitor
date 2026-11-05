@@ -1,11 +1,15 @@
 import { createRouter, createWebHistory } from "vue-router";
-import { bootstrap, loadWorkspace, workspace, notify } from "./state";
+import { bootstrap, loadWorkspace, workspace, notify, effectiveRole, isAdmin, isRealAdmin } from "./state";
 
 const router = createRouter({
   history: createWebHistory(),
   scrollBehavior: () => ({ top: 0 }),
   routes: [
-    { path: "/", redirect: "/dashboard" },
+    {
+      path: "/",
+      component: () => import("./pages/Landing.vue"),
+      meta: { public: true, landing: true },
+    },
     {
       path: "/preview",
       component: () => import("./pages/WorkspacePage.vue"),
@@ -72,23 +76,16 @@ router.beforeEach(async (to, from) => {
     if (!to.meta.public) return "/login?error=Connection";
   }
   if (to.meta.public)
-    return to.path === "/login" && workspace.session ? "/dashboard" : true;
+    return (to.path === "/login" || to.meta.landing) && workspace.session
+      ? "/dashboard"
+      : true;
   if (!workspace.session) return "/login";
   const user = workspace.session.user;
-  if (!user.isSuperadmin && user.role === 'DEVELOPER' && to.path.startsWith('/members/') && to.params.id !== user.id)
-    return user.id ? '/members/' + user.id : '/dashboard';
-  if (
-    user.role === "UNASSIGNED" &&
-    !user.isSuperadmin &&
-    to.path !== "/pending"
-  )
+  if (!isRealAdmin.value && effectiveRole.value === "DEVELOPER" && to.path.startsWith("/members/") && to.params.id !== user.id)
+    return user.id ? "/members/" + user.id : "/dashboard";
+  if (effectiveRole.value === "UNASSIGNED" && to.path !== "/pending")
     return "/pending";
-  if (
-    (to.meta.admin &&
-      !user.isSuperadmin &&
-      !["ADMIN", "SUPERADMIN"].includes(user.role)) ||
-    (to.meta.superadmin && !user.isSuperadmin)
-  )
+  if ((to.meta.admin || to.meta.superadmin) && !isAdmin.value)
     return "/dashboard";
   if (
     !to.meta.public &&
@@ -103,7 +100,13 @@ router.beforeEach(async (to, from) => {
   return true;
 });
 router.afterEach((to) => {
-  document.title = `${to.path === "/login" ? "Masuk" : "Workspace"} — Team Monitor`;
+  const title =
+    to.path === "/login"
+      ? "Masuk"
+      : to.meta.landing
+        ? "Beranda"
+        : "Workspace";
+  document.title = `${title} · Team Monitor`;
 });
 export function sectionHref(section: string) {
   return workspace.preview

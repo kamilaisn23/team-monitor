@@ -54,6 +54,17 @@ const liveTeams = [
   { id: "t1", name: "Product", memberCount: 1 },
   { id: "t2", name: "Platform", memberCount: 0 },
 ];
+const pendingMember = {
+  id: "m2",
+  name: "Pending Member",
+  role: "UNASSIGNED",
+  isActive: true,
+  avatarUrl: null,
+  usernameGithub: "pending-user",
+  usernameGitlab: null,
+  teams: [],
+};
+let includePendingMember = false;
 const liveMember = {
   id: "m1",
   name: "Test Member",
@@ -111,7 +122,10 @@ globalThis.fetch = async (url, options = {}) => {
     }
     if (pathname === "/api/teams") return Response.json(liveTeams);
     if (pathname === "/api/repositories") return Response.json([liveRepo]);
-    if (pathname === "/api/members") return Response.json([liveMember]);
+    if (pathname === "/api/members")
+      return Response.json(
+        includePendingMember ? [liveMember, pendingMember] : [liveMember],
+      );
     if (pathname === "/api/members/m1") return Response.json(liveMember);
     if (pathname === "/api/settings")
       return Response.json({ lowMax: 3, mediumMax: 7, staleDays: 30 });
@@ -413,6 +427,27 @@ window.innerWidth = 390;
 await navigate("dashboard");
 assert.ok(document.querySelector(".member-grid"));
 assert.equal(document.querySelector(".data-table"), null);
+await router.push("/");
+await settle();
+assert.equal(router.currentRoute.value.path, "/");
+assert.ok(document.querySelector(".landing-page"), "Public landing page renders.");
+assert.equal(
+  document.querySelector("#arsitektur-rbac"),
+  null,
+  "Landing page omits the crowded RBAC overview section.",
+);
+assert.equal(
+  document.querySelector(".lp-role-grid"),
+  null,
+  "Landing page does not render the role cards.",
+);
+assert.equal(
+  [...document.querySelectorAll(".landing-page a, .landing-page button")].some(
+    (element) => /demo|pratinjau/i.test(element.textContent || ""),
+  ),
+  false,
+  "Landing page has no demo or preview CTAs.",
+);
 await router.push("/admin/settings");
 await settle();
 assert.equal(
@@ -421,16 +456,42 @@ assert.equal(
   "Unauthenticated private routes redirect.",
 );
 assert.equal(
-  document.querySelector(".login-submit").disabled,
+  document.querySelector(".auth-provider.github").disabled,
   true,
   "Placeholder OAuth cannot start login.",
+);
+assert.equal(
+  document.querySelector(".auth-persona-box, .auth-preview-link"),
+  null,
+  "Login page has no demo personas or preview link.",
 );
 await api("/test-delete", { method: "DELETE" });
 assert.ok(requests.some((request) => request.url === "/test-delete"));
 live = true;
 workspace.session = {
+  user: { name: "Admin Test", role: "SUPERADMIN", isSuperadmin: true },
+};
+await router.push("/dashboard");
+await settle();
+assert.equal(
+  document.querySelector(".account-button small").textContent.trim(),
+  "Admin",
+  "The environment-based superadmin account is labelled Admin in the UI.",
+);
+workspace.session = {
   user: { name: "Admin Test", role: "ADMIN", isSuperadmin: false },
 };
+includePendingMember = true;
+await router.push("/admin/members");
+await settle();
+const approvalBanner = document.querySelector(".pending-approval-banner");
+assert.ok(approvalBanner, "Admins see an alert for unassigned accounts.");
+assert.ok(approvalBanner.textContent.includes("1"));
+assert.ok(
+  approvalBanner.querySelector('a[href="/admin/members/m2/edit"]'),
+  "The pending account links to its role and team editor.",
+);
+includePendingMember = false;
 await router.push("/admin/members/m1/edit");
 await settle();
 assert.equal(document.querySelector('input[value="t1"]').checked, true);
@@ -463,6 +524,30 @@ assert.ok(
   ),
 );
 assert.equal(router.currentRoute.value.path, "/admin/members");
+workspace.session.user = {
+  name: "Pending Member",
+  email: "pending@example.test",
+  image: null,
+  githubLogin: "pending-user",
+  role: "UNASSIGNED",
+  isSuperadmin: false,
+};
+await router.push("/pending");
+await settle();
+assert.ok(document.querySelector(".pending-access-badge"));
+assert.ok(
+  document.querySelector(".pending-user-card").textContent.includes("@pending-user"),
+);
+assert.ok(
+  document.querySelector(".pending-user-card").textContent.includes("pending@example.test"),
+);
+workspace.session.user = {
+  name: "Admin Test",
+  role: "ADMIN",
+  isSuperadmin: false,
+};
+await router.push("/admin/members");
+await settle();
 workspace.config.kerjabaikEnabled = true;
 await settle();
 assert.equal(
@@ -496,9 +581,11 @@ await router.push("/admin/settings");
 await settle();
 assert.equal(
   router.currentRoute.value.path,
-  "/dashboard",
-  "Ordinary admin cannot open superadmin settings.",
+  "/admin/settings",
+  "Admin can open settings because admin and superadmin are merged.",
 );
+await router.push("/dashboard");
+await settle();
 assert.ok(document.querySelector('.manager-brief').textContent.includes('Belum ada anggota'));
 assert.ok(document.querySelector('.sync-button'), 'Admin has the manual sync control');
 for (const role of ['MANAGER', 'DEVELOPER', 'UNASSIGNED']) {

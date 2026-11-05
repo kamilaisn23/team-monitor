@@ -13,9 +13,9 @@ export default defineConfig(({ command }) => ({
     target: "es2022",
   },
   server: {
-    port: 3000,
+    port: Number(process.env.FRONTEND_PORT || 3000),
     strictPort: true,
     host: "0.0.0.0",
-    proxy: { "/api": { target: "http://127.0.0.1:3001", changeOrigin: false } },
+    proxy: { "/api": { target: process.env.VITE_API_TARGET || "http://127.0.0.1:3001", changeOrigin: false } },
   },
 }));

@@ -6,6 +6,7 @@ import Avatar from "../components/Avatar.vue";
 import MetricCard from "../components/MetricCard.vue";
 import Icon from "../components/Icon.vue";
 import Pager from "../components/Pager.vue";
+import OneOnOneNotes from "../components/OneOnOneNotes.vue";
 import { api, query } from "../api";
 import { workspace, canManage } from "../state";
 import { roleLabels, type Member } from "../types";
@@ -481,6 +482,6 @@ const tabs = [
           :limit="20"
           @change="page = $event"
         /></section
-    ></template>
+    ><OneOnOneNotes :member-id="id" /></template>
   </div>
 </template>

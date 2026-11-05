@@ -3,11 +3,12 @@ import { auth } from '@/lib/auth'
 import { getWorkloadThresholds, setWorkloadThresholds } from '@/lib/settings'
 import { readJsonObject } from '@/lib/json-body'
 import { onlyKeys } from '@/lib/input-validation'
+import { isAdminRole } from '@/lib/session'
 
 export async function GET() {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!session.user.isSuperadmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!isAdminRole(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const thresholds = await getWorkloadThresholds()
   return NextResponse.json(thresholds)
@@ -16,7 +17,7 @@ export async function GET() {
 export async function PATCH(req: NextRequest) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!session.user.isSuperadmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!isAdminRole(session)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const parsed = await readJsonObject(req)
   if (!parsed.ok) return parsed.response

@@ -8,14 +8,14 @@ export async function getSession() {
   return session
 }
 
-// True env-based superadmin only — use for gates that must exclude the ADMIN role (e.g. Settings).
+// Superadmin and ADMIN are merged: both have full access, including Settings.
 export async function requireSuperadmin() {
   const session = await getSession()
-  if (!session.user.isSuperadmin) redirect('/dashboard')
+  if (!isAdminRole(session)) redirect('/dashboard')
   return session
 }
 
-// isSuperadmin (env-based) OR the ADMIN role — ADMIN has the same access as superadmin except Settings.
+// isSuperadmin (env-based) OR the ADMIN role — both have identical, full access.
 export function isAdminRole(session: { user: { isSuperadmin: boolean; role: AppRole } }) {
   return session.user.isSuperadmin || session.user.role === 'ADMIN'
 }

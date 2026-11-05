@@ -12,7 +12,7 @@ const migrationNames = ["0_init", "20260422000000_add_kerjabaik_employee_id", "2
 const prisma = path.resolve("node_modules/prisma/build/index.js");
 // Read-only comparison must succeed before any metadata is written. Keep the
 // URL in the environment rather than command arguments or console output.
-const diff = spawnSync(process.execPath, [prisma, "migrate", "diff", "--from-schema-datasource", "prisma/schema.prisma", "--to-schema-datamodel", "prisma/schema.prisma", "--exit-code"], { env: process.env, encoding: "utf8" });
+const diff = spawnSync(process.execPath, [prisma, "migrate", "diff", "--from-schema-datasource", "prisma/schema.prisma", "--to-schema-datamodel", "prisma/baseline-schema.prisma", "--exit-code"], { env: process.env, encoding: "utf8" });
 if (diff.status !== 0) throw new Error("Existing schema differs from the current schema (or cannot be inspected); adoption stopped");
 const client = new pg.Client({ connectionString: process.env.DATABASE_URL, connectionTimeoutMillis: 10000 });
 await client.connect();

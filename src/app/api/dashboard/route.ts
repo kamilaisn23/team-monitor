@@ -86,7 +86,14 @@ export async function GET(req: NextRequest) {
         const rawIssueLimit = Number(searchParams.get("issueLimit"));
         const issuePage = Math.max(1, Number.isFinite(rawIssuePage) ? Math.trunc(rawIssuePage) || 1 : 1);
         const issueLimit = Math.min(100, Math.max(1, Number.isFinite(rawIssueLimit) ? Math.trunc(rawIssueLimit) || 20 : 20));
-        const where = issueView === "stale" ? staleIssueWhere : openIssueWhere;
+        const assigneeId = searchParams.get("assigneeId");
+        if (assigneeId && !memberIdSet.has(assigneeId)) {
+            return NextResponse.json({ data: [], total: 0, page: issuePage, limit: issueLimit });
+        }
+        const baseWhere = issueView === "stale" ? staleIssueWhere : openIssueWhere;
+        const where = assigneeId
+            ? { ...baseWhere, assignees: { some: { teamMemberId: assigneeId } } }
+            : baseWhere;
         const [total, issues] = await Promise.all([
             prisma.issue.count({ where }),
             prisma.issue.findMany({

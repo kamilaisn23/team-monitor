@@ -36,7 +36,7 @@ try {
  run(['migrate','diff','--from-schema-datasource','prisma/schema.prisma','--to-schema-datamodel','prisma/schema.prisma','--exit-code'],names[0]);
  console.log('Empty install: migrate deploy applied complete migration chain; schema matches');
  await admin.query(`CREATE DATABASE "${names[1]}"`);
- const currentSql=spawnSync(process.execPath,[cli,'migrate','diff','--from-empty','--to-schema-datamodel','prisma/schema.prisma','--script'],{encoding:'utf8'});
+ const currentSql=spawnSync(process.execPath,[cli,'migrate','diff','--from-empty','--to-schema-datamodel','prisma/baseline-schema.prisma','--script'],{encoding:'utf8'});
  assert.equal(currentSql.status,0);
  const c=new pg.Client({connectionString:target(names[1])});await c.connect();
  await c.query(currentSql.stdout);

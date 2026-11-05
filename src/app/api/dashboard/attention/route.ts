@@ -5,7 +5,8 @@ import { isAdminRole } from "@/lib/session";
 import { getWorkloadThresholds } from "@/lib/settings";
 import { dashboardIssue, dashboardIssueSelect } from "@/lib/dashboard-issues";
 import { attentionScope } from "@/lib/attention-scope";
-import { emptyFollowUp, followUpStatuses, parseFollowUp, type AttentionResponse, type FollowUpStatus } from "@/types/attention";
+import { serializeFollowUp } from "@/lib/follow-up";
+import { emptyFollowUp, followUpStatuses, type AttentionResponse, type FollowUpStatus } from "@/types/attention";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -37,8 +38,8 @@ export async function GET(req: NextRequest) {
   };
   // Read only candidate IDs before applying the shared review status and pagination.
   const candidates = await prisma.issue.findMany({ where, select: { id: true }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] });
-  const rows = candidates.length ? await prisma.setting.findMany({ where: { key: { in: candidates.map((issue) => `attention:issue:${issue.id}`) } } }) : [];
-  const followUps = new Map(rows.map((row) => [row.key.slice("attention:issue:".length), parseFollowUp(row.value)]));
+  const rows = candidates.length ? await prisma.followUp.findMany({ where: { issueId: { in: candidates.map((issue) => issue.id) } } }) : [];
+  const followUps = new Map(rows.map((row) => [row.issueId, serializeFollowUp(row)]));
   const counts = { unreviewed: 0, following_up: 0, reviewed: 0 };
   candidates.forEach((issue) => counts[(followUps.get(issue.id) ?? emptyFollowUp()).status]++);
   const status = params.get("status") as FollowUpStatus;

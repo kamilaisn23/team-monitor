@@ -17,7 +17,7 @@ Check the implementation with `npm run typecheck`, `npm run build`, and `node sc
 
 `/preview` renders the same dashboard and navigation using clearly labelled, fictional browser-local fixtures. It does not call the dashboard, team, repository, sync, or member APIs. Search, team scope, workload filters, pagination, list/card views, and a sample member dialog work locally. Real workspace routes remain authenticated. Only the exact `/preview` path is public.
 
-The login page offers a preview link and disables GitHub sign-in when OAuth credentials are missing or still placeholder values. Configure real OAuth credentials to enable normal login. Check fixture behavior with `node scripts/preview-smoke.mjs`.
+The public landing page and login page only offer real GitHub sign-in; they do not link to `/preview` or show demo personas. GitHub sign-in is disabled when OAuth credentials are missing or still placeholder values. Configure real OAuth credentials to enable normal login. The `/preview` route remains available only as a direct QA/test route, not as a public CTA. Check fixture behavior with `node scripts/preview-smoke.mjs`.
 
 The preview sidebar includes all six workspace and management destinations. Query-based routes (`/preview?section=reports`, `members`, `teams`, `repositories`, and `settings`) render sample screens, keep the active menu highlighted, and preserve the shared team scope. Reports export the visible sample workload snapshot as CSV; member and repository directories support searching; team cards open their dashboard scope; settings offer a local threshold simulation. These screens never mutate real records or settings.
 

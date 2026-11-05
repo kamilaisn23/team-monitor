@@ -11,6 +11,10 @@ export interface MemberBody {
 export function onlyKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
   return Object.keys(value).every(key => keys.includes(key));
 }
+export function identifier(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(value);
+}
+export const isIdentifier = identifier;
 export function validName(value: unknown): value is string {
   return typeof value === "string" && value.length <= 200 && !!value.trim() && !/[\u0000-\u001f\u007f]/.test(value);
 }
@@ -45,6 +49,32 @@ export function validCalendarDate(value: string | null): value is string {
 export function validMonth(value: string | null): value is string {
   return !!value && /^\d{4}-(0[1-9]|1[0-2])$/.test(value) && Number(value.slice(0, 4)) >= 1900;
 }
+export const oneOnOneSentiments = ["POSITIVE", "NEUTRAL", "NEEDS_SUPPORT"] as const;
+export type OneOnOneSentiment = (typeof oneOnOneSentiments)[number];
+export type OneOnOneNoteBody = { date: string; focusArea: string; actionItems: string; sentiment: OneOnOneSentiment };
+export function validOneOnOneNoteBody(value: Record<string, unknown>): value is Record<string, unknown> & OneOnOneNoteBody {
+  return onlyKeys(value, ["date", "focusArea", "actionItems", "sentiment"]) &&
+    validCalendarDate(value.date as string | null) &&
+    typeof value.focusArea === "string" && value.focusArea.length <= 500 &&
+    typeof value.actionItems === "string" && value.actionItems.length <= 2000 &&
+    (Array.isArray(oneOnOneSentiments) && oneOnOneSentiments.includes(value.sentiment as OneOnOneSentiment));
+}
+
+// ---------------------------------------------------------------------------
+// Issues / rebalance (internal reassignment - never touches GitHub/GitLab)
+// ---------------------------------------------------------------------------
+
+export const rebalanceMaxIssueIds = 50;
+export type RebalanceBody = { fromMemberId: string; toMemberId: string; issueIds: string[] };
+export function validRebalanceBody(value: Record<string, unknown>): value is Record<string, unknown> & RebalanceBody {
+  return onlyKeys(value, ["fromMemberId", "toMemberId", "issueIds"]) &&
+    validEntityId(value.fromMemberId) && validEntityId(value.toMemberId) &&
+    value.fromMemberId !== value.toMemberId &&
+    Array.isArray(value.issueIds) && value.issueIds.length >= 1 && value.issueIds.length <= rebalanceMaxIssueIds &&
+    value.issueIds.every(validEntityId) &&
+    new Set(value.issueIds as string[]).size === (value.issueIds as string[]).length;
+}
+
 export class InputError extends Error {}
 export function enumParameter<T extends string>(value: string, choices: readonly T[], field: string): T {
   if (!choices.includes(value as T)) throw new InputError(`Invalid ${field}`);

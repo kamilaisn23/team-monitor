@@ -4,8 +4,19 @@ import { useRoute, useRouter } from "vue-router";
 import Icon from "./components/Icon.vue";
 import Avatar from "./components/Avatar.vue";
 import TeamScopeSelect from "./components/TeamScopeSelect.vue";
-import { workspace, isAdmin, canSettings, notify, signOut } from "./state";
+import {
+  workspace,
+  isAdmin,
+  canSettings,
+  notify,
+  signOut,
+  isRealAdmin,
+  effectiveRole,
+  setViewAs,
+  viewRoleOptions,
+} from "./state";
 import { api } from "./api";
+import { roleLabels } from "./types";
 import { sectionHref } from "./router";
 
 const route = useRoute();
@@ -21,10 +32,14 @@ const section = computed(() =>
     ? String(route.query.section || "dashboard")
     : route.path.split("/").filter(Boolean).at(-1) || "dashboard",
 );
-const nav = computed(() =>
+const mainNav = computed(() =>
   [
     { id: "dashboard", title: "Ringkasan", icon: "dashboard", visible: true },
     { id: "reports", title: "Laporan", icon: "chart", visible: true },
+  ].filter((item) => item.visible),
+);
+const adminNav = computed(() =>
+  [
     {
       id: "members",
       title: "Anggota",
@@ -51,11 +66,41 @@ const nav = computed(() =>
     },
   ].filter((item) => item.visible),
 );
+const nav = computed(() => [...mainNav.value, ...adminNav.value]);
 const activeTitle = computed(() =>
   route.path.startsWith("/members/")
     ? "Profil anggota"
     : nav.value.find((item) => item.id === section.value)?.title || "Workspace",
 );
+const accountRole = computed(() => {
+  const user = workspace.session?.user;
+  if (!user) return "";
+  return roleLabels[effectiveRole.value] || effectiveRole.value;
+});
+const accessTone = computed(() => {
+  if (!workspace.session?.user) return "unassigned";
+  if (["ADMIN", "SUPERADMIN"].includes(effectiveRole.value)) return "admin";
+  if (effectiveRole.value === "MANAGER") return "manager";
+  if (effectiveRole.value === "DEVELOPER") return "developer";
+  return "unassigned";
+});
+const accessIcon = computed(() =>
+  accessTone.value === "admin"
+    ? "shield"
+    : accessTone.value === "manager"
+      ? "users"
+      : accessTone.value === "developer"
+        ? "branch"
+        : "clock",
+);
+const accessLabel = computed(
+  () => accountRole.value || (workspace.preview ? "Pratinjau" : "Anggota"),
+);
+function switchRole(role: (typeof viewRoleOptions)[number]) {
+  setViewAs(role);
+  accountOpen.value = false;
+  if (route.path !== "/dashboard") router.push("/dashboard");
+}
 const selectedTeam = computed(() =>
   workspace.teams.find((team) => team.id === workspace.teamId),
 );
@@ -154,6 +199,12 @@ onBeforeUnmount(() => events?.close());
           ><small>PEOPLE. WORK. CLARITY.</small></span
         ></RouterLink
       >
+      <div class="sidebar-access">
+        <span class="sidebar-access-label">Hak Akses</span>
+        <span class="access-badge" :class="accessTone"
+          ><Icon :name="accessIcon" :size="13" />{{ accessLabel }}</span
+        >
+      </div>
       <div class="sidebar-workspace">
         <span class="workspace-symbol"><Icon name="teams" :size="20" /></span>
         <div>
@@ -167,19 +218,33 @@ onBeforeUnmount(() => events?.close());
       <div class="nav-caption">WORKSPACE</div>
       <nav>
         <RouterLink
-          v-for="item in nav"
+          v-for="item in mainNav"
           :key="item.id"
           :to="sectionHref(item.id)"
           :class="['nav-item', { active: item.id === section }]"
           :title="item.title"
           ><Icon :name="item.icon" :size="21" /><span>{{ item.title }}</span
-          ><span
-            v-if="item.id === 'teams' && workspace.teams.length"
-            class="nav-count"
-            >{{ workspace.teams.length }}</span
           ><span v-if="item.id === section" class="nav-active-dot"></span
         ></RouterLink>
       </nav>
+      <template v-if="adminNav.length">
+        <div class="nav-caption admin-caption">ADMINISTRASI</div>
+        <nav>
+          <RouterLink
+            v-for="item in adminNav"
+            :key="item.id"
+            :to="sectionHref(item.id)"
+            :class="['nav-item', { active: item.id === section }]"
+            :title="item.title"
+            ><Icon :name="item.icon" :size="21" /><span>{{ item.title }}</span
+            ><span
+              v-if="item.id === 'teams' && workspace.teams.length"
+              class="nav-count"
+              >{{ workspace.teams.length }}</span
+            ><span v-if="item.id === section" class="nav-active-dot"></span
+          ></RouterLink>
+        </nav>
+      </template>
       <div class="scope-control">
         <label for="scope-team">CAKUPAN PEMANTAUAN</label>
         <TeamScopeSelect
@@ -277,10 +342,31 @@ onBeforeUnmount(() => events?.close());
                 size="small"
               /><span
                 >{{ workspace.session?.user.name || "Anggota"
-                }}<small>{{ workspace.session?.user.role }}</small></span
+                }}<small>{{ accountRole }}</small></span
               ><Icon name="down" :size="14" />
             </button>
             <div v-if="accountOpen" class="account-menu">
+              <div v-if="isRealAdmin" class="account-roles">
+                <span class="account-roles-label">Lihat sebagai</span>
+                <button
+                  v-for="role in viewRoleOptions"
+                  :key="role"
+                  type="button"
+                  :class="{ active: effectiveRole === role }"
+                  @click="switchRole(role)"
+                >
+                  <Icon
+                    :name="
+                      role === 'ADMIN'
+                        ? 'shield'
+                        : role === 'MANAGER'
+                          ? 'users'
+                          : 'branch'
+                    "
+                    :size="17"
+                  />{{ roleLabels[role] }}
+                </button>
+              </div>
               <RouterLink
                 v-if="workspace.session?.user.id"
                 :to="'/members/' + workspace.session.user.id"

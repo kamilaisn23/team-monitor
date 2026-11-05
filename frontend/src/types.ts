@@ -85,8 +85,37 @@ export interface Issue {
   repository: { name: string; platform: string };
   assignees?: { id: string; name: string }[];
 }
+export const oneOnOneSentiments = [
+  "POSITIVE",
+  "NEUTRAL",
+  "NEEDS_SUPPORT",
+] as const;
+export type OneOnOneSentiment = (typeof oneOnOneSentiments)[number];
+export interface OneOnOneNote {
+  id: string;
+  memberId: string;
+  authorId: string | null;
+  authorName: string;
+  date: string;
+  focusArea: string;
+  actionItems: string;
+  sentiment: OneOnOneSentiment;
+  createdAt: string;
+  updatedAt: string;
+}
+export const sentimentLabels: Record<OneOnOneSentiment, string> = {
+  POSITIVE: "Positif",
+  NEUTRAL: "Netral",
+  NEEDS_SUPPORT: "Butuh dukungan",
+};
+export interface RebalanceResult {
+  movedIssueIds: string[];
+  fromMember: { id: string; name: string };
+  toMember: { id: string; name: string };
+  internalOnly: boolean;
+}
 export const roleLabels: Record<string, string> = {
-  SUPERADMIN: "Superadmin",
+  SUPERADMIN: "Admin",
   ADMIN: "Admin",
   MANAGER: "Manager",
   DEVELOPER: "Developer",

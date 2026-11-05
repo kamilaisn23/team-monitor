@@ -15,6 +15,9 @@ Issue dikerjakan berurutan dan ditutup setelah kode dipublikasikan, pemeriksaan 
 | #7 | Selesai dan ditutup | Partial IaC web tanpa penghapusan resource/variabel; commit 3a51fbf; Railway 562882ef-f322-4b0a-9097-76b7a6886c88 SUCCESS. |
 | #8 | Selesai dan ditutup | Scheduler/pengunci/kesehatan sumber; commit ff22b25; Railway ca5d7dab-9907-447a-941f-3c8f55822633 SUCCESS. Sumber menunggu konfigurasi integrasi. |
 | #9 | Sedang dikerjakan | Backup terverifikasi, baseline lengkap, adopsi existing dan migrate deploy. |
-| #10–#18 | Menunggu giliran | Daftar dan tautan lengkap: GITHUB_ISSUES.md. |
+| #10 | Selesai di kode | Riwayat tindak lanjut tersimpan di `follow_up_history`; pusat perhatian membaca tabel `follow_ups`. Belum diverifikasi pada deployment. |
+| #11–#18 | Menunggu giliran | Daftar dan tautan lengkap: GITHUB_ISSUES.md. |
 
-Perbaikan #1 sudah diuji dengan matriks role, pencegahan side effect sebelum worker dimuat, status/SSE, visibilitas tombol, cooldown, dan JSON 401/403. Preview publik tetap tersedia. Login live belum diuji karena #2 ditunda.
+Perbaikan #1 sudah diuji dengan matriks role, pencegahan side effect sebelum worker dimuat, status/SSE, visibilitas tombol, cooldown, dan JSON 401/403. Landing page dan login tidak lagi menampilkan demo persona atau tautan pratinjau; semua ajakan masuk memakai GitHub OAuth. Login live belum diuji karena #2 ditunda.
+
+Prototipe `prototype-user` sudah disatukan ke frontend Vue: landing page publik, halaman login dan modal login GitHub, pusat kendali manager, panduan peran, redistribusi beban internal, dan catatan 1-on-1. Pemetaan komponen dan batasan sinkronisasi platform ada di `PROTOTYPE_MERGE.md`. `npm run typecheck`, `npm test`, dan `npm run test:migrations` lulus dengan PostgreSQL lokal Docker pada port `5434`.
