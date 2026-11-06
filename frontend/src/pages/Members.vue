@@ -85,12 +85,11 @@ async function remove() {
 <template>
   <div class="page-content">
     <PageHeading
-      eyebrow="THE PEOPLE BEHIND THE WORK"
-      :title="canManage ? 'Manajemen anggota' : 'Kenali tim Anda'"
+      :title="canManage ? 'Anggota' : 'Anggota tim'"
       :description="
         canManage
-          ? 'Kelola akun GitHub/GitLab, peran, status, dan keanggotaan tim.'
-          : 'Seluruh anggota, peran, dan keanggotaan tim dalam satu direktori.'
+          ? 'Kelola akses, peran, dan tim.'
+          : 'Daftar anggota dan tim.'
       "
       ><RouterLink
         v-if="canManage"
@@ -109,7 +108,7 @@ async function remove() {
       <span class="pending-approval-icon"><Icon name="clock" :size="20" /></span>
       <div class="pending-approval-copy">
         <h2>{{ unassignedMembers.length }} akun menunggu akses</h2>
-        <p>Pilih role dan tim agar pengguna baru dapat masuk ke workspace.</p>
+        <p>Atur peran dan tim untuk mengaktifkan akses.</p>
       </div>
       <RouterLink
         v-if="canManage && firstUnassignedId"
@@ -140,7 +139,7 @@ async function remove() {
               filtered.length
             }}</span>
           </h2>
-          <p>Temukan orang yang tepat untuk pekerjaan berikutnya.</p>
+
         </div>
         <div class="view-switch">
           <button
@@ -227,8 +226,7 @@ async function remove() {
                 >
               </div>
               <div class="member-card-bottom">
-                <span>Lihat profil anggota</span
-                ><Icon name="arrow" :size="19" />
+                <Icon name="arrow" :size="19" />
               </div>
             </button>
             <div v-if="canManage" class="card-management">
@@ -334,8 +332,8 @@ async function remove() {
         </div>
         <div v-else class="empty-state">
           <Icon name="users" :size="32" />
-          <h3>Tidak ada anggota yang cocok</h3>
-          <p>Sesuaikan pencarian atau filter status.</p>
+          <h3>Tidak ada anggota</h3>
+          <p>Ubah pencarian atau filter.</p>
         </div></template
       ><Pager
         :page="page"

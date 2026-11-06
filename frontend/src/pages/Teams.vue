@@ -114,9 +114,8 @@ function focusTeams() {
 <template>
   <div class="page-content">
     <PageHeading
-      eyebrow="BETTER TOGETHER"
-      title="Tim yang saling terhubung"
-      description="Satukan anggota, repositori, dan fokus kerja setiap tim."
+      title="Tim"
+      description="Anggota dan repositori per tim."
       ><button v-if="canManage" class="button primary" @click="edit()">
         <Icon name="plus" :size="18" />Buat tim</button
       ><span v-else class="scope-tag"
@@ -157,7 +156,6 @@ function focusTeams() {
     <div class="section-toolbar">
       <div>
         <h2>Semua tim</h2>
-        <p>Anggota lintas tim dapat muncul dalam beberapa tim.</p>
       </div>
       <label class="search-control"
         ><Icon name="search" :size="19" /><input
@@ -210,7 +208,7 @@ function focusTeams() {
             >
           </div>
           <div class="team-card-action">
-            Lihat kapasitas tim<Icon name="arrow" :size="20" />
+            <Icon name="arrow" :size="20" />
           </div>
         </button>
         <div v-if="canManage" class="card-management">
@@ -223,8 +221,8 @@ function focusTeams() {
       </article>
       <div v-if="!filtered.length" class="surface empty-state">
         <Icon name="teams" :size="32" />
-        <h3>Belum ada tim yang cocok</h3>
-        <p>Gunakan kata kunci lain untuk mencari tim.</p>
+        <h3>Belum ada tim</h3>
+        <p>Coba kata kunci lain.</p>
       </div>
     </div>
     <Modal

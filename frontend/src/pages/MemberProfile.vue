@@ -187,9 +187,8 @@ const tabs = [
 <template>
   <div class="page-content">
     <PageHeading
-      eyebrow="THE PERSON BEHIND THE PROGRESS"
-      title="Lebih dekat dengan pekerjaan"
-      description="Pahami kontribusi, kapasitas, dan aktivitas seorang anggota."
+      title="Profil anggota"
+      description="Kontribusi dan kapasitas."
       ><RouterLink to="/dashboard" class="button secondary"
         ><Icon name="left" :size="17" />Kembali</RouterLink
       ><RouterLink
