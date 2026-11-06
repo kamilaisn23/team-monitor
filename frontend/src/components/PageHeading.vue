@@ -1,15 +1,14 @@
 <script setup lang="ts">
 withDefaults(
-  defineProps<{ eyebrow?: string; title: string; description: string }>(),
-  { eyebrow: "WORKSPACE OVERVIEW" },
+  defineProps<{ eyebrow?: string; title: string; description?: string }>(),
+  { eyebrow: "", description: "" },
 );
 </script>
 <template>
   <div class="page-heading">
     <div>
-      <div class="eyebrow"><span></span>{{ eyebrow }}</div>
-      <h1>{{ title }}<span class="title-dot">.</span></h1>
-      <p>{{ description }}</p>
+      <h1>{{ title }}</h1>
+      <p v-if="description">{{ description }}</p>
     </div>
     <div class="heading-actions"><slot /></div>
   </div>

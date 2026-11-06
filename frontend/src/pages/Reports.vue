@@ -168,16 +168,11 @@ function download() {
 <template>
   <div class="page-content">
     <PageHeading
-      eyebrow="TURN WORK INTO INSIGHT"
-      :title="
-        workspace.preview
-          ? 'Beban kerja, lebih jelas'
-          : 'Progres yang bisa dipahami'
-      "
+      title="Laporan"
       :description="
-        workspace.preview
-          ? 'Snapshot beban saat ini untuk menjelajahi desain laporan.'
-          : isDeveloper ? 'Tinjau aktivitas pribadi per periode dan ekspor laporan Anda.' : 'Tinjau aktivitas anggota per periode, bandingkan tim, dan ekspor laporan.'
+        isDeveloper
+          ? 'Aktivitas Anda per periode.'
+          : 'Aktivitas anggota per periode.'
       "
       ><span class="scope-tag"><Icon name="teams" :size="16" />{{ scopeName }}</span><button
         class="button primary"
@@ -188,8 +183,7 @@ function download() {
       </button></PageHeading
     >
     <div v-if="workspace.preview" class="info-banner">
-      <Icon name="eye" :size="18" />Pratinjau menampilkan snapshot data contoh.
-      Riwayat bulanan tersedia setelah data asli terhubung.
+      <Icon name="eye" :size="18" />Data contoh.
     </div>
     <div v-if="error" class="error-banner" role="alert">
       <Icon name="alert" />{{ error }}<button @click="load">Coba lagi</button>
@@ -252,13 +246,7 @@ function download() {
           <h2>
             {{ workspace.preview ? "Snapshot anggota" : "Laporan aktivitas" }}
           </h2>
-          <p>
-            {{
-              view === "team"
-                ? "Anggota lintas tim dapat dihitung pada beberapa kelompok."
-                : "Klik nama anggota untuk meninjau detail pekerjaan."
-            }}
-          </p>
+          <p>Klik nama untuk detail.</p>
         </div>
         <div class="level-tabs">
           <button
@@ -449,8 +437,8 @@ function download() {
         </div>
         <div v-if="!rows.length" class="empty-state">
           <Icon name="file" :size="32" />
-          <h3>Belum ada aktivitas pada periode ini</h3>
-          <p>Ubah periode atau filter laporan.</p>
+          <h3>Belum ada aktivitas</h3>
+          <p>Ubah periode atau filter.</p>
         </div>
         <Pager :page="page" :total="total" @change="page = $event"
       /></template>

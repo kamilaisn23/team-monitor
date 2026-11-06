@@ -78,9 +78,8 @@ function openTeam(id: string) {
 <template>
   <div class="page-content">
     <PageHeading
-      eyebrow="WHERE WORK BEGINS"
-      title="Pekerjaan yang terhubung"
-      description="Jelajahi sumber isu GitHub dan GitLab serta keterkaitannya dengan tim."
+      title="Repositori"
+      description="Sumber isu GitHub dan GitLab."
       ><span class="scope-tag"
         ><Icon name="branch" :size="17" />Repositori tim</span
       ></PageHeading
@@ -122,17 +121,8 @@ function openTeam(id: string) {
       <div class="directory-heading">
         <div>
           <h2>
-            Direktori repositori<span class="count-chip">{{
-              filtered.length
-            }}</span>
+            Repositori<span class="count-chip">{{ filtered.length }}</span>
           </h2>
-          <p>
-            {{
-              workspace.preview
-                ? "Repositori contoh untuk menjelajahi desain."
-                : "Repositori ditemukan melalui sinkronisasi sumber data."
-            }}
-          </p>
         </div>
       </div>
       <div class="toolbar">
@@ -235,8 +225,8 @@ function openTeam(id: string) {
       </div>
       <div v-if="!visible.length" class="empty-state">
         <Icon name="branch" :size="32" />
-        <h3>Tidak ada repositori yang cocok</h3>
-        <p>Coba filter lain atau sinkronkan sumber data.</p>
+        <h3>Tidak ada repositori</h3>
+        <p>Coba filter lain.</p>
       </div>
       <Pager :page="page" :total="filtered.length" @change="page = $event" />
     </section>

@@ -432,6 +432,16 @@ await settle();
 assert.equal(router.currentRoute.value.path, "/");
 assert.ok(document.querySelector(".landing-page"), "Public landing page renders.");
 assert.equal(
+  document.querySelector(".lp-kicker"),
+  null,
+  "The old top hero label is removed.",
+);
+assert.equal(
+  document.querySelector(".lp-hero h1").textContent.replace(/\\s+/g, " ").trim(),
+  "Sistem pemantauan terintegrasi GitHub & GitLab",
+  "The hero headline uses the requested system description.",
+);
+assert.equal(
   document.querySelector("#arsitektur-rbac"),
   null,
   "Landing page omits the crowded RBAC overview section.",

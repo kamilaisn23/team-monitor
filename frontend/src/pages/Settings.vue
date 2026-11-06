@@ -72,9 +72,8 @@ async function save() {
 <template>
   <div class="page-content">
     <PageHeading
-      eyebrow="MAKE IT WORK FOR YOUR TEAM"
-      title="Ukuran kerja yang tepat"
-      description="Atur ambang kapasitas dan usia isu agar pemantauan sesuai dengan tim Anda."
+      title="Pengaturan"
+      description="Ambang beban kerja dan isu mengendap."
       ><span class="scope-tag"
         ><Icon name="settings" :size="16" />{{
           workspace.preview ? "Simulasi lokal" : "Pengaturan sistem"
@@ -90,12 +89,11 @@ async function save() {
       <section class="surface settings-panel">
         <div class="settings-panel-head">
           <div>
-            <div class="eyebrow">YOUR WORKLOAD RULES</div>
-            <h2>Definisikan kapasitas</h2>
-            <p>Jumlah isu terbuka menentukan kategori beban anggota.</p>
+            <h2>Batas beban kerja</h2>
+            <p>Jumlah isu terbuka per kategori.</p>
           </div>
           <span class="settings-role-chip"
-            ><Icon name="shield" :size="14" />Khusus Admin</span
+            ><Icon name="shield" :size="14" />Admin</span
           >
         </div>
         <div class="settings-band-grid">
@@ -106,10 +104,6 @@ async function save() {
                 >≤ {{ thresholds.lowMax }} isu</span
               >
             </div>
-            <p>
-              Anggota dengan isu sampai angka ini masuk kategori ringan dan
-              punya kapasitas untuk tugas baru.
-            </p>
             <div class="setting-field">
               <label for="low-max">Batas beban ringan</label>
               <div>
@@ -131,10 +125,6 @@ async function save() {
                 isu</span
               >
             </div>
-            <p>
-              Di atas batas ringan sampai angka ini, kapasitas dinilai optimal
-              untuk ritme kerja standar.
-            </p>
             <div class="setting-field">
               <label for="medium-max">Batas beban sedang</label>
               <div>
@@ -155,10 +145,7 @@ async function save() {
                 >&gt; {{ thresholds.mediumMax }} isu</span
               >
             </div>
-            <p>
-              Peringatan potensi kelelahan atau hambatan review pull request.
-              Kategori ini dihitung otomatis dari batas sedang.
-            </p>
+
           </div>
           <div class="settings-band stale">
             <div class="settings-band-head">
@@ -213,24 +200,9 @@ async function save() {
             }}
           </button>
         </div>
-        <p class="panel-footnote">
-          {{
-            workspace.preview
-              ? "Simulasi tidak mengubah pengaturan atau data asli."
-              : "Pengaturan berlaku untuk seluruh workspace setelah disimpan."
-          }}
-        </p>
       </section>
       <section class="simulation-panel">
-        <div class="eyebrow">SEE THE IMPACT</div>
-        <h2>Aturan yang mudah dipahami</h2>
-        <p>
-          {{
-            workspace.preview
-              ? "Lihat dampaknya langsung pada 14 anggota contoh."
-              : "Rentang kategori yang akan diterapkan pada data anggota."
-          }}
-        </p>
+        <h2>Simulasi</h2>
         <div class="simulation-bands">
           <button
             v-for="level in levels"
@@ -274,7 +246,6 @@ async function save() {
                   ).length + " isu contoh mengendap"
                 : "Usia isu > " + thresholds.staleDays + " hari"
             }}</strong>
-            <p>Jadikan isu lama sebagai bahan tinjauan prioritas tim.</p>
           </div>
         </div>
       </section>
@@ -282,7 +253,7 @@ async function save() {
     <Modal
       v-if="category"
       :title="'Anggota dengan beban ' + levelLabels[category].toLowerCase()"
-      description="Hasil simulasi menggunakan data contoh."
+      description="Data contoh."
       @close="category = undefined"
       ><div class="detail-list">
         <button
