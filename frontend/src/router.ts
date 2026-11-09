@@ -76,9 +76,7 @@ router.beforeEach(async (to, from) => {
     if (!to.meta.public) return "/login?error=Connection";
   }
   if (to.meta.public)
-    return (to.path === "/login" || to.meta.landing) && workspace.session
-      ? "/dashboard"
-      : true;
+    return to.meta.landing && workspace.session ? "/dashboard" : true;
   if (!workspace.session) return "/login";
   const user = workspace.session.user;
   if (!isRealAdmin.value && effectiveRole.value === "DEVELOPER" && to.path.startsWith("/members/") && to.params.id !== user.id)

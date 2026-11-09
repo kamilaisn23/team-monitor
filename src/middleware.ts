@@ -18,10 +18,8 @@ export default auth((req) => {
     return NextResponse.redirect(new URL('/login', req.url))
   }
 
-  // Authenticated on login page → redirect to dashboard
-  if (pathname === '/login') {
-    return NextResponse.redirect(new URL('/dashboard', req.url))
-  }
+  // Login page is always viewable, even when authenticated
+  if (pathname === '/login') return NextResponse.next()
 
   const role = session.user.role
   const isSuperadmin = session.user.isSuperadmin
