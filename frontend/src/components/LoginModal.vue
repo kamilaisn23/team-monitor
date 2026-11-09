@@ -2,7 +2,7 @@
 import { nextTick, onBeforeUnmount, ref, watch } from "vue";
 import Icon from "./Icon.vue";
 import { workspace } from "../state";
-import { startDevLogin, startGithubLogin } from "../auth";
+import { startDevLogin } from "../auth";
 
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ close: []; "open-full": [] }>();
@@ -13,18 +13,6 @@ const dialog = ref<HTMLElement | null>(null);
 
 function close() {
   if (!loading.value) emit("close");
-}
-
-async function login() {
-  if (!workspace.config.githubConfigured || loading.value) return;
-  loading.value = true;
-  error.value = "";
-  try {
-    await startGithubLogin("/dashboard");
-  } catch (e) {
-    error.value = (e as Error).message;
-    loading.value = false;
-  }
 }
 
 async function devSignIn() {
@@ -96,48 +84,23 @@ onBeforeUnmount(() => {
         <div class="login-modal-body">
           <div class="login-modal-sso">
             <p v-if="error" class="login-modal-error" role="alert">{{ error }}</p>
-            <button
-              type="button"
-              class="login-modal-provider github"
-              :disabled="!workspace.config.githubConfigured || loading"
-              @click="login"
-            >
-              <Icon name="github" :size="19" />
-              {{
-                loading
-                  ? "Menghubungkan ke GitHub..."
-                  : "Masuk dengan GitHub Enterprise"
-              }}
-            </button>
-            <p class="login-modal-info">
-              <Icon name="info" :size="16" />
-              OAuth memverifikasi akun GitHub Anda dengan data anggota tim, lalu
-              mengarahkan ke dashboard sesuai peran. Akun baru menunggu
-              verifikasi admin.
-            </p>
-            <p v-if="!workspace.config.githubConfigured" class="login-modal-warning">
-              <Icon name="alert" :size="15" />Layanan GitHub OAuth belum
-              dikonfigurasi pada lingkungan ini.
-            </p>
             <form
               v-if="workspace.config.devLoginEnabled"
               class="login-modal-dev"
               @submit.prevent="devSignIn"
             >
-              <label for="login-modal-dev-login">
-                Login dev lokal (simulasi GitHub)
-              </label>
+              <label for="login-modal-dev-login">Username anggota</label>
               <div>
                 <input
                   id="login-modal-dev-login"
                   v-model="devLogin"
                   type="text"
-                  placeholder="username GitHub"
+                  placeholder="contoh: budi-santoso"
                   autocomplete="username"
                   :disabled="loading"
                 />
                 <button type="submit" :disabled="loading || !devLogin.trim()">
-                  Masuk
+                  {{ loading ? "Memproses..." : "Masuk" }}
                 </button>
               </div>
               <small>
@@ -145,6 +108,10 @@ onBeforeUnmount(() => {
                 UNASSIGNED dan menunggu review admin.
               </small>
             </form>
+            <p v-else class="login-modal-warning">
+              <Icon name="alert" :size="15" />Login sementara belum diaktifkan
+              pada environment ini.
+            </p>
           </div>
         </div>
 

@@ -2,7 +2,7 @@
 import { onMounted, ref } from "vue";
 import Icon from "../components/Icon.vue";
 import { workspace, bootstrap } from "../state";
-import { startDevLogin, startGithubLogin } from "../auth";
+import { startDevLogin } from "../auth";
 
 const loading = ref(false);
 const error = ref("");
@@ -15,18 +15,6 @@ onMounted(async () => {
     error.value = "Koneksi server belum tersedia. Silakan muat ulang halaman.";
   }
 });
-
-async function login() {
-  if (!workspace.config.githubConfigured || loading.value) return;
-  loading.value = true;
-  error.value = "";
-  try {
-    await startGithubLogin("/dashboard");
-  } catch (e) {
-    error.value = (e as Error).message;
-    loading.value = false;
-  }
-}
 
 async function devSignIn() {
   const login = devLogin.value.trim();
@@ -101,64 +89,44 @@ async function devSignIn() {
         <section class="auth-form-side">
           <div class="auth-form-head">
             <span class="auth-symbol"><Icon name="shield" :size="23" /></span>
-            <h2>Masuk dengan akun GitHub</h2>
+            <h2>Masuk ke Team Monitor</h2>
             <p>
-              Autentikasi langsung ke backend Team Monitor. Peran Manager atau
-              Developer ditetapkan dari akun GitHub yang terhubung.
+              Sementara ini masuk menggunakan username anggota. Peran Manager
+              atau Developer ditetapkan dari data anggota tim.
             </p>
           </div>
 
           <div class="auth-sso">
             <p v-if="error" class="auth-error" role="alert">{{ error }}</p>
-            <button
-              type="button"
-              class="auth-provider github"
-              :disabled="!workspace.config.githubConfigured || loading"
-              @click="login"
-            >
-              <Icon name="github" :size="18" />
-              {{
-                loading
-                  ? "Menghubungkan ke GitHub..."
-                  : "Masuk dengan GitHub Enterprise"
-              }}
-            </button>
-            <p class="auth-note">
-              <Icon name="info" :size="16" />
-              Sistem memverifikasi username Anda ke database anggota tim dan
-              mengarahkan ke dashboard sesuai role Manager atau Developer.
-              Akun baru akan menunggu verifikasi admin.
-            </p>
-            <p v-if="!workspace.config.githubConfigured" class="auth-warning">
-              <Icon name="alert" :size="15" />GitHub OAuth menunggu konfigurasi
-              pada environment ini.
-            </p>
             <form
               v-if="workspace.config.devLoginEnabled"
               class="auth-dev"
               @submit.prevent="devSignIn"
             >
-              <label for="auth-dev-login">
-                Login dev lokal (simulasi GitHub)
-              </label>
+              <label for="auth-dev-login">Username anggota</label>
               <div>
                 <input
                   id="auth-dev-login"
                   v-model="devLogin"
                   type="text"
-                  placeholder="username GitHub"
+                  placeholder="contoh: budi-santoso"
                   autocomplete="username"
                   :disabled="loading"
                 />
                 <button type="submit" :disabled="loading || !devLogin.trim()">
-                  Masuk
+                  {{ loading ? "Memproses..." : "Masuk" }}
                 </button>
               </div>
               <small>
                 Username diverifikasi ke data anggota tim. Akun baru berstatus
-                UNASSIGNED dan menunggu review admin.
+                UNASSIGNED dan menunggu review admin. Ingin sekadar mencoba?
+                <RouterLink to="/preview">Buka mode demo</RouterLink>.
               </small>
             </form>
+            <p v-else class="auth-warning">
+              <Icon name="alert" :size="15" />Login sementara belum diaktifkan
+              pada environment ini.
+            </p>
           </div>
         </section>
       </div>

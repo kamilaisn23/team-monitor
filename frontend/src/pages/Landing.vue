@@ -2,15 +2,16 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import Icon from "../components/Icon.vue";
-import LoginModal from "../components/LoginModal.vue";
 
 const router = useRouter();
-const loginOpen = ref(false);
 const activePreviewTab = ref<"rebalance" | "attention" | "reports">("rebalance");
 const simulatedOverload = ref(2);
 
+function openDemo() {
+  router.push("/preview");
+}
+
 function openFullLogin() {
-  loginOpen.value = false;
   router.push("/login");
 }
 </script>
@@ -34,8 +35,8 @@ function openFullLogin() {
         </nav>
 
         <div class="lp-nav-actions">
-          <button class="lp-btn small primary" @click="loginOpen = true">
-            <Icon name="github" :size="14" /> Masuk dengan GitHub
+          <button class="lp-btn small primary" @click="openDemo">
+            <Icon name="chart" :size="14" /> Coba demo
           </button>
         </div>
       </div>
@@ -89,8 +90,8 @@ function openFullLogin() {
           </p>
 
           <div class="lp-hero-actions">
-            <button class="lp-btn primary large" @click="loginOpen = true">
-              <Icon name="github" :size="16" /> Masuk dengan GitHub
+            <button class="lp-btn primary large" @click="openDemo">
+              <Icon name="chart" :size="16" /> Coba demo tanpa login
             </button>
             <a class="lp-btn outline large" href="#fitur">
               Pelajari fitur <Icon name="right" :size="16" />
@@ -195,8 +196,8 @@ function openFullLogin() {
                         }}
                       </strong>
                     </div>
-                    <button @click="loginOpen = true">
-                      Masuk ke dashboard <Icon name="right" :size="14" />
+                    <button @click="openDemo">
+                      Buka demo dashboard <Icon name="right" :size="14" />
                     </button>
                   </article>
                 </div>
@@ -242,8 +243,8 @@ function openFullLogin() {
                       dan lead time penutupan.
                     </p>
                   </div>
-                  <button class="lp-sim-button blue" @click="loginOpen = true">
-                    <Icon name="download" :size="14" /> Masuk untuk laporan
+                  <button class="lp-sim-button blue" @click="openDemo">
+                    <Icon name="download" :size="14" /> Lihat di demo
                   </button>
                 </div>
                 <div class="lp-report-stats">
@@ -283,8 +284,8 @@ function openFullLogin() {
                 <li><Icon name="check" :size="13" /><span><strong>/admin/repositories:</strong> tag repo GitHub/GitLab ke tim atau abaikan.</span></li>
                 <li><Icon name="check" :size="13" /><span><strong>POST /api/sync:</strong> picu sinkronisasi manual data isu.</span></li>
               </ul>
-              <button class="lp-role-action blue" @click="loginOpen = true">
-                Masuk sebagai admin <Icon name="right" :size="14" />
+              <button class="lp-role-action blue" @click="openDemo">
+                Coba sebagai admin <Icon name="right" :size="14" />
               </button>
             </article>
 
@@ -302,8 +303,8 @@ function openFullLogin() {
                 <li><Icon name="check" :size="13" /><span><strong>Rebalance:</strong> pindahkan tiket dari rekayasawan overload.</span></li>
                 <li><Icon name="check" :size="13" /><span><strong>/members/:id:</strong> profil lengkap, heatmap, dan catatan 1-on-1 privat.</span></li>
               </ul>
-              <button class="lp-role-action primary" @click="loginOpen = true">
-                Masuk sebagai Manager <Icon name="right" :size="14" />
+              <button class="lp-role-action primary" @click="openDemo">
+                Coba sebagai Manager <Icon name="right" :size="14" />
               </button>
             </article>
 
@@ -320,8 +321,8 @@ function openFullLogin() {
                 <li><Icon name="check" :size="13" /><span><strong>Laporan personal:</strong> unduh rekap CSV produktivitas mandiri.</span></li>
                 <li><Icon name="check" :size="13" /><span><strong>Proteksi privasi:</strong> tidak dapat melihat catatan 1-on-1 manajer.</span></li>
               </ul>
-              <button class="lp-role-action emerald" @click="loginOpen = true">
-                Masuk sebagai Developer <Icon name="right" :size="14" />
+              <button class="lp-role-action emerald" @click="openDemo">
+                Coba sebagai Developer <Icon name="right" :size="14" />
               </button>
             </article>
 
@@ -440,17 +441,11 @@ function openFullLogin() {
           </p>
         </div>
         <div class="lp-footer-actions">
-          <button @click="loginOpen = true">Masuk ke workspace</button>
+          <button @click="openDemo">Coba demo</button>
           <button @click="openFullLogin">Halaman login</button>
         </div>
       </div>
     </footer>
-
-    <LoginModal
-      :open="loginOpen"
-      @close="loginOpen = false"
-      @open-full="openFullLogin"
-    />
   </div>
 </template>
 
