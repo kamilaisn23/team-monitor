@@ -21,7 +21,11 @@ export const workspace = reactive({
   preview: false,
   ready: false,
   session: null as Session | null,
-  config: { githubConfigured: false, kerjabaikEnabled: true },
+  config: {
+    githubConfigured: false,
+    devLoginEnabled: false,
+    kerjabaikEnabled: true,
+  },
   teams: [] as Team[],
   repositories: [] as Repository[],
   teamId: "",

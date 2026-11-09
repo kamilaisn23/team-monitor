@@ -2,12 +2,13 @@
 import { nextTick, onBeforeUnmount, ref, watch } from "vue";
 import Icon from "./Icon.vue";
 import { workspace } from "../state";
-import { startGithubLogin } from "../auth";
+import { startDevLogin, startGithubLogin } from "../auth";
 
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ close: []; "open-full": [] }>();
 const loading = ref(false);
 const error = ref("");
+const devLogin = ref("");
 const dialog = ref<HTMLElement | null>(null);
 
 function close() {
@@ -20,6 +21,19 @@ async function login() {
   error.value = "";
   try {
     await startGithubLogin("/dashboard");
+  } catch (e) {
+    error.value = (e as Error).message;
+    loading.value = false;
+  }
+}
+
+async function devSignIn() {
+  const login = devLogin.value.trim();
+  if (!workspace.config.devLoginEnabled || loading.value || !login) return;
+  loading.value = true;
+  error.value = "";
+  try {
+    await startDevLogin(login, "/dashboard");
   } catch (e) {
     error.value = (e as Error).message;
     loading.value = false;
@@ -105,6 +119,32 @@ onBeforeUnmount(() => {
               <Icon name="alert" :size="15" />Layanan GitHub OAuth belum
               dikonfigurasi pada lingkungan ini.
             </p>
+            <form
+              v-if="workspace.config.devLoginEnabled"
+              class="login-modal-dev"
+              @submit.prevent="devSignIn"
+            >
+              <label for="login-modal-dev-login">
+                Login dev lokal (simulasi GitHub)
+              </label>
+              <div>
+                <input
+                  id="login-modal-dev-login"
+                  v-model="devLogin"
+                  type="text"
+                  placeholder="username GitHub"
+                  autocomplete="username"
+                  :disabled="loading"
+                />
+                <button type="submit" :disabled="loading || !devLogin.trim()">
+                  Masuk
+                </button>
+              </div>
+              <small>
+                Username diverifikasi ke data anggota. Akun baru berstatus
+                UNASSIGNED dan menunggu review admin.
+              </small>
+            </form>
           </div>
         </div>
 
@@ -236,6 +276,47 @@ onBeforeUnmount(() => {
   font-weight: 700;
 }
 .login-modal-foot button:hover { text-decoration: underline; }
+.login-modal-dev {
+  display: grid;
+  gap: 7px;
+  margin-top: 4px;
+  padding: 11px 12px;
+  border: 1px dashed #c7d5e9;
+  border-radius: 10px;
+  background: #f7faff;
+}
+.login-modal-dev label {
+  color: #35506f;
+  font-size: 10px;
+  font-weight: 700;
+}
+.login-modal-dev > div { display: flex; gap: 7px; }
+.login-modal-dev input {
+  flex: 1;
+  min-width: 0;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid #cbd9ec;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 11px;
+}
+.login-modal-dev input:focus {
+  outline: none;
+  border-color: #6f8ffd;
+  box-shadow: 0 0 0 3px #6f8ffd1f;
+}
+.login-modal-dev button {
+  padding: 0 14px;
+  border-radius: 8px;
+  background: #375ee3;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+.login-modal-dev button:disabled { opacity: 0.55; }
+.login-modal-dev small { color: #6a7f9c; font-size: 9px; line-height: 1.55; }
 @media (max-width: 460px) {
   .login-modal-foot { align-items: flex-start; flex-direction: column; }
 }

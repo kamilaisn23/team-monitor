@@ -1,14 +1,14 @@
 import { api } from "./api";
 
-export async function startGithubLogin(callbackPath = "/dashboard") {
+async function submitAuthForm(
+  action: string,
+  fields: Record<string, string>,
+) {
   const { csrfToken } = await api<{ csrfToken: string }>("/api/auth/csrf");
   const form = document.createElement("form");
   form.method = "POST";
-  form.action = "/api/auth/signin/github";
-  for (const [name, value] of Object.entries({
-    csrfToken,
-    callbackUrl: window.location.origin + callbackPath,
-  })) {
+  form.action = action;
+  for (const [name, value] of Object.entries({ csrfToken, ...fields })) {
     const input = document.createElement("input");
     input.type = "hidden";
     input.name = name;
@@ -17,4 +17,20 @@ export async function startGithubLogin(callbackPath = "/dashboard") {
   }
   document.body.append(form);
   form.submit();
+}
+
+export async function startGithubLogin(callbackPath = "/dashboard") {
+  await submitAuthForm("/api/auth/signin/github", {
+    callbackUrl: window.location.origin + callbackPath,
+  });
+}
+
+export async function startDevLogin(
+  login: string,
+  callbackPath = "/dashboard",
+) {
+  await submitAuthForm("/api/auth/callback/dev-github", {
+    callbackUrl: window.location.origin + callbackPath,
+    login,
+  });
 }

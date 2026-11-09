@@ -32,6 +32,7 @@ pnpm-debug.log*
 *.pid
 *.seed
 *.pid.lock
+.pgdata/
 
 # OS
 .DS_Store

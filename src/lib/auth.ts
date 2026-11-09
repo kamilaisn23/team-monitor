@@ -1,5 +1,7 @@
 import NextAuth from "next-auth";
+import Credentials from "next-auth/providers/credentials";
 import GitHub from "next-auth/providers/github";
+import { isDevLoginEnabled } from "@/lib/dev-login";
 import { prisma } from "@/lib/prisma";
 import type { AppRole } from "@/types";
 
@@ -19,15 +21,79 @@ function isSuperadminLogin(login: string | undefined) {
         .includes(login.toLowerCase());
 }
 
+const devLoginEnabled = isDevLoginEnabled();
+
+async function authorizeDevLogin(credentials: Partial<Record<string, unknown>>) {
+    const login = String(credentials?.login ?? "").trim();
+    if (!/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(login)) return null;
+
+    if (isSuperadminLogin(login)) {
+        return {
+            id: `superadmin:${login.toLowerCase()}`,
+            name: login,
+            login,
+            role: "SUPERADMIN" as AppRole,
+            isSuperadmin: true,
+        };
+    }
+
+    const existing = await prisma.teamMember.findFirst({
+        where: { usernameGithub: { equals: login, mode: "insensitive" } },
+        select: { id: true, name: true, role: true },
+    });
+
+    const member = existing
+        ? await prisma.teamMember.update({
+              where: { id: existing.id },
+              data: { lastLoginAt: new Date() },
+              select: { id: true, name: true, role: true },
+          })
+        : await prisma.teamMember.create({
+              data: {
+                  name: login,
+                  usernameGithub: login,
+                  role: "UNASSIGNED",
+                  lastLoginAt: new Date(),
+              },
+              select: { id: true, name: true, role: true },
+          });
+
+    return {
+        id: member.id,
+        name: member.name,
+        login,
+        role: member.role as AppRole,
+        isSuperadmin: false,
+    };
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
     trustHost: true,
     providers: [
         GitHub({
             issuer: "https://github.com/login/oauth",
         }),
+        ...(devLoginEnabled
+            ? [
+                  Credentials({
+                      id: "dev-github",
+                      name: "GitHub username (local development)",
+                      credentials: {
+                          login: {
+                              label: "GitHub username",
+                              type: "text",
+                          },
+                      },
+                      authorize: (credentials) =>
+                          authorizeDevLogin(credentials),
+                  }),
+              ]
+            : []),
     ],
     callbacks: {
-        async signIn({ profile }) {
+        async signIn({ profile, account }) {
+            if (account?.provider === "dev-github") return true;
+
             const login = profile?.login as string | undefined;
             if (!login) return false;
 
@@ -69,7 +135,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             if (token.memberId) session.user.id = token.memberId as string;
             return session;
         },
-        async jwt({ token, profile, trigger }) {
+        async jwt({ token, user, profile, trigger }) {
+            const devUser = user as
+                | {
+                      id?: string;
+                      login?: string;
+                      role?: AppRole;
+                      isSuperadmin?: boolean;
+                  }
+                | undefined;
+
+            // Local development login already resolved the member and role
+            // in the Credentials authorize() callback.
+            if (devUser?.login && !profile) {
+                token.login = devUser.login;
+                token.role = devUser.role ?? "UNASSIGNED";
+                token.isSuperadmin = devUser.isSuperadmin ?? false;
+                token.memberId = devUser.isSuperadmin
+                    ? undefined
+                    : (devUser.id as string | undefined);
+                return token;
+            }
+
             // Populate on first sign-in (profile present) or on session refresh
             const login = (profile?.login ?? token.login) as string | undefined;
             if (!login) return token;
@@ -84,8 +171,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     token.isSuperadmin = true;
                     token.memberId = undefined;
                 } else {
-                    const member = await prisma.teamMember.findUnique({
-                        where: { usernameGithub: login },
+                    const member = await prisma.teamMember.findFirst({
+                        where: {
+                            usernameGithub: {
+                                equals: login,
+                                mode: "insensitive",
+                            },
+                        },
                         select: { id: true, role: true },
                     });
                     token.role = member?.role ?? "UNASSIGNED";

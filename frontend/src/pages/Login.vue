@@ -2,10 +2,11 @@
 import { onMounted, ref } from "vue";
 import Icon from "../components/Icon.vue";
 import { workspace, bootstrap } from "../state";
-import { startGithubLogin } from "../auth";
+import { startDevLogin, startGithubLogin } from "../auth";
 
 const loading = ref(false);
 const error = ref("");
+const devLogin = ref("");
 
 onMounted(async () => {
   try {
@@ -21,6 +22,19 @@ async function login() {
   error.value = "";
   try {
     await startGithubLogin("/dashboard");
+  } catch (e) {
+    error.value = (e as Error).message;
+    loading.value = false;
+  }
+}
+
+async function devSignIn() {
+  const login = devLogin.value.trim();
+  if (!workspace.config.devLoginEnabled || loading.value || !login) return;
+  loading.value = true;
+  error.value = "";
+  try {
+    await startDevLogin(login, "/dashboard");
   } catch (e) {
     error.value = (e as Error).message;
     loading.value = false;
@@ -119,6 +133,32 @@ async function login() {
               <Icon name="alert" :size="15" />GitHub OAuth menunggu konfigurasi
               pada environment ini.
             </p>
+            <form
+              v-if="workspace.config.devLoginEnabled"
+              class="auth-dev"
+              @submit.prevent="devSignIn"
+            >
+              <label for="auth-dev-login">
+                Login dev lokal (simulasi GitHub)
+              </label>
+              <div>
+                <input
+                  id="auth-dev-login"
+                  v-model="devLogin"
+                  type="text"
+                  placeholder="username GitHub"
+                  autocomplete="username"
+                  :disabled="loading"
+                />
+                <button type="submit" :disabled="loading || !devLogin.trim()">
+                  Masuk
+                </button>
+              </div>
+              <small>
+                Username diverifikasi ke data anggota tim. Akun baru berstatus
+                UNASSIGNED dan menunggu review admin.
+              </small>
+            </form>
           </div>
         </section>
       </div>
@@ -331,6 +371,47 @@ async function login() {
   color: #9c3f54;
   font-size: 9.5px;
 }
+.auth-dev {
+  display: grid;
+  gap: 7px;
+  margin-top: 3px;
+  padding: 11px 12px;
+  border: 1px dashed #c7d5e9;
+  border-radius: 10px;
+  background: #f7faff;
+}
+.auth-dev label {
+  color: #35506f;
+  font-size: 9.5px;
+  font-weight: 700;
+}
+.auth-dev > div { display: flex; gap: 7px; }
+.auth-dev input {
+  flex: 1;
+  min-width: 0;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid #cbd9ec;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 10.5px;
+}
+.auth-dev input:focus {
+  outline: none;
+  border-color: #6f8ffd;
+  box-shadow: 0 0 0 3px #6f8ffd1f;
+}
+.auth-dev button {
+  padding: 0 14px;
+  border-radius: 8px;
+  background: #375ee3;
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 700;
+}
+.auth-dev button:disabled { opacity: 0.55; }
+.auth-dev small { color: #6a7f9c; font-size: 8.5px; line-height: 1.55; }
 .auth-footer {
   display: flex;
   align-items: center;

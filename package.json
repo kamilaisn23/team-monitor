@@ -4,6 +4,7 @@
     "private": true,
     "scripts": {
         "dev": "node scripts/dev.mjs",
+        "dev:db": "node scripts/dev-db.mjs",
         "build": "npm run build:worker && npm run build:frontend && next build",
         "build:worker": "node scripts/build-worker.mjs",
         "build:frontend": "vite build --config frontend/vite.config.ts",
@@ -42,6 +43,7 @@
         "@types/react": "19.0.8",
         "@types/react-dom": "19.0.3",
         "@vitejs/plugin-vue": "^6.0.10",
+        "embedded-postgres": "^16.15.0-beta.19",
         "esbuild": "^0.28.2",
         "jsdom": "^26.1.0",
         "postcss": "^8",
