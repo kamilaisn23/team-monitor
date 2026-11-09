@@ -33,11 +33,12 @@ COPY --from=builder /app/src ./src
 COPY --from=builder /app/tsconfig*.json ./
 ENV HOSTNAME=0.0.0.0
 EXPOSE 3000
-CMD ["sh", "-c", "npx prisma migrate deploy && exec node scripts/production.mjs"]
+
+# GANTI BARIS CMD DI SINI (Ubah dari migrate deploy menjadi db push)
+CMD ["sh", "-c", "npx prisma db push && exec node scripts/production.mjs"]
 
 FROM runner AS sync-runner
-CMD ["node", "/app/scripts/sync-cron.js"]
+CMD ["sh", "-c", "npx prisma db push && node server.js"]
 
-# Default image is the web app; the cron image is selected explicitly by Compose.
+# Default image adalah production (yang sudah mewarisi runner terbaru di atas)
 FROM runner AS production
-
