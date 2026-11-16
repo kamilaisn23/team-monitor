@@ -14,6 +14,8 @@ The public design preview uses fictional data and does not require OAuth. For re
 
 To publish an unrestricted demo, set `AUTH_DEMO_SUPERADMIN=true` and set `SUPERADMIN_GITHUB_USERNAME` to the demo administrator name. The login page then creates a session for that one server-configured identity without asking for a username. This makes every visitor a superadmin, so use it only for an isolated demo service with demo data and turn it off before attaching real integrations or production data.
 
+`node scripts/seed-demo.mjs` (or `npm run seed:demo`) upserts fictional teams, members, repositories, and issues into the database. The Docker image runs it after `prisma db push` on startup so a Railway demo can be populated without manual DB access. The seed is idempotent and only writes demo records (`demo-*` IDs / demo repositories).
+
 Useful commands after linking the project:
 
 ```powershell

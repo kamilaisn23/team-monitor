@@ -34,11 +34,11 @@ COPY --from=builder /app/tsconfig*.json ./
 ENV HOSTNAME=0.0.0.0
 EXPOSE 3000
 
-# GANTI BARIS CMD DI SINI (Ubah dari migrate deploy menjadi db push)
-CMD ["sh", "-c", "npx prisma db push && exec node scripts/production.mjs"]
+# Push schema, optionally seed demo data (idempotent), then start web + scheduler.
+CMD ["sh", "-c", "npx prisma db push && if [ \"$AUTH_DEMO_SUPERADMIN\" = \"true\" ] || [ \"$SEED_DEMO\" = \"true\" ]; then node scripts/seed-demo.mjs; fi && exec node scripts/production.mjs"]
 
 FROM runner AS sync-runner
-CMD ["sh", "-c", "npx prisma db push && node server.js"]
+CMD ["sh", "-c", "npx prisma db push && if [ \"$AUTH_DEMO_SUPERADMIN\" = \"true\" ] || [ \"$SEED_DEMO\" = \"true\" ]; then node scripts/seed-demo.mjs; fi && node server.js"]
 
 # Default image adalah production (yang sudah mewarisi runner terbaru di atas)
 FROM runner AS production
