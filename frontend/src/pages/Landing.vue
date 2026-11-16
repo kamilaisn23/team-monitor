@@ -8,7 +8,11 @@ const activePreviewTab = ref<"rebalance" | "attention" | "reports">("rebalance")
 const simulatedOverload = ref(2);
 
 function openDemo() {
-  router.push("/preview");
+  openDemoAs("ADMIN");
+}
+
+function openDemoAs(role: "ADMIN" | "MANAGER" | "DEVELOPER") {
+  router.push({ path: "/dashboard", query: { demoRole: role } });
 }
 
 function openFullLogin() {
@@ -259,7 +263,7 @@ function openFullLogin() {
         </div>
       </section>
 
-      <section v-if="false" id="arsitektur-rbac" class="lp-section white">
+      <section id="arsitektur-rbac" class="lp-section white">
         <div class="lp-container">
           <div class="lp-section-heading">
             <span>Arsitektur &amp; hak akses sistem</span>
@@ -303,7 +307,7 @@ function openFullLogin() {
                 <li><Icon name="check" :size="13" /><span><strong>Rebalance:</strong> pindahkan tiket dari rekayasawan overload.</span></li>
                 <li><Icon name="check" :size="13" /><span><strong>/members/:id:</strong> profil lengkap, heatmap, dan catatan 1-on-1 privat.</span></li>
               </ul>
-              <button class="lp-role-action primary" @click="openDemo">
+              <button class="lp-role-action primary" @click="openDemoAs('MANAGER')">
                 Coba sebagai Manager <Icon name="right" :size="14" />
               </button>
             </article>
@@ -321,7 +325,7 @@ function openFullLogin() {
                 <li><Icon name="check" :size="13" /><span><strong>Laporan personal:</strong> unduh rekap CSV produktivitas mandiri.</span></li>
                 <li><Icon name="check" :size="13" /><span><strong>Proteksi privasi:</strong> tidak dapat melihat catatan 1-on-1 manajer.</span></li>
               </ul>
-              <button class="lp-role-action emerald" @click="openDemo">
+              <button class="lp-role-action emerald" @click="openDemoAs('DEVELOPER')">
                 Coba sebagai Developer <Icon name="right" :size="14" />
               </button>
             </article>

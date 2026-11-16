@@ -1,5 +1,15 @@
 import { createRouter, createWebHistory } from "vue-router";
-import { bootstrap, loadWorkspace, workspace, notify, effectiveRole, isAdmin, isRealAdmin } from "./state";
+import {
+  bootstrap,
+  loadWorkspace,
+  workspace,
+  notify,
+  effectiveRole,
+  isAdmin,
+  isRealAdmin,
+  setViewAs,
+  viewRoleOptions,
+} from "./state";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -7,6 +17,11 @@ const router = createRouter({
   routes: [
     {
       path: "/",
+      component: () => import("./pages/WorkspacePage.vue"),
+      meta: { preview: true },
+    },
+    {
+      path: "/landing",
       component: () => import("./pages/Landing.vue"),
       meta: { public: true, landing: true },
     },
@@ -75,9 +90,21 @@ router.beforeEach(async (to, from) => {
   } catch {
     if (!to.meta.public) return "/login?error=Connection";
   }
-  if (to.meta.public)
-    return to.meta.landing && workspace.session ? "/dashboard" : true;
-  if (!workspace.session) return "/login";
+  // The public URL is the product landing page. Keep it there even when a
+  // demo session exists, so opening the Railway domain never jumps into the
+  // workspace automatically.
+  if (to.meta.public) return true;
+  if (!workspace.session) {
+    const demoRole = typeof to.query.demoRole === "string" ? to.query.demoRole : "";
+    return demoRole ? { path: "/login", query: { demoRole } } : "/login";
+  }
+  const demoRole = typeof to.query.demoRole === "string" ? to.query.demoRole : "";
+  if (
+    workspace.session.user.isSuperadmin &&
+    (viewRoleOptions as readonly string[]).includes(demoRole)
+  ) {
+    setViewAs(demoRole as (typeof viewRoleOptions)[number]);
+  }
   const user = workspace.session.user;
   if (!isRealAdmin.value && effectiveRole.value === "DEVELOPER" && to.path.startsWith("/members/") && to.params.id !== user.id)
     return user.id ? "/members/" + user.id : "/dashboard";

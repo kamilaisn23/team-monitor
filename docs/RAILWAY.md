@@ -10,6 +10,10 @@ The container runs `prisma migrate deploy` before starting a supervisor for the 
 
 The public design preview uses fictional data and does not require OAuth. For real sign-in, configure `AUTH_GITHUB_ID` and `AUTH_GITHUB_SECRET` from a GitHub OAuth App and set its callback URL to `<service-url>/api/auth/callback/github`. Use `SUPERADMIN_GITHUB_USERNAME` for the administrator account. Configure GitHub/GitLab/Kerjabaik integration variables before syncing actual records.
 
+## Public superadmin demo
+
+To publish an unrestricted demo, set `AUTH_DEMO_SUPERADMIN=true` and set `SUPERADMIN_GITHUB_USERNAME` to the demo administrator name. The login page then creates a session for that one server-configured identity without asking for a username. This makes every visitor a superadmin, so use it only for an isolated demo service with demo data and turn it off before attaching real integrations or production data.
+
 Useful commands after linking the project:
 
 ```powershell

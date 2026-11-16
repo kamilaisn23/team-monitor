@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
+import { useRoute } from "vue-router";
 import Icon from "../components/Icon.vue";
 import { workspace, bootstrap } from "../state";
 import { startDevLogin } from "../auth";
@@ -7,10 +8,14 @@ import { startDevLogin } from "../auth";
 const loading = ref(false);
 const error = ref("");
 const devLogin = ref("");
+const route = useRoute();
 
 onMounted(async () => {
   try {
     await bootstrap();
+    if (workspace.config.demoSuperadminEnabled && !workspace.session) {
+      await demoSignIn();
+    }
   } catch {
     error.value = "Koneksi server belum tersedia. Silakan muat ulang halaman.";
   }
@@ -23,6 +28,23 @@ async function devSignIn() {
   error.value = "";
   try {
     await startDevLogin(login, "/dashboard");
+  } catch (e) {
+    error.value = (e as Error).message;
+    loading.value = false;
+  }
+}
+
+async function demoSignIn() {
+  if (!workspace.config.demoSuperadminEnabled || loading.value) return;
+  loading.value = true;
+  error.value = "";
+  try {
+    const demoRole = route.query.demoRole;
+    const callbackPath =
+      typeof demoRole === "string" && ["ADMIN", "MANAGER", "DEVELOPER"].includes(demoRole)
+        ? `/dashboard?demoRole=${encodeURIComponent(demoRole)}`
+        : "/dashboard";
+    await startDevLogin("", callbackPath);
   } catch (e) {
     error.value = (e as Error).message;
     loading.value = false;
@@ -98,8 +120,11 @@ async function devSignIn() {
 
           <div class="auth-sso">
             <p v-if="error" class="auth-error" role="alert">{{ error }}</p>
+            <div v-if="workspace.config.demoSuperadminEnabled" class="auth-demo-loading">
+              Membuka workspace demo sebagai Superadmin...
+            </div>
             <form
-              v-if="workspace.config.devLoginEnabled"
+              v-else-if="workspace.config.devLoginEnabled"
               class="auth-dev"
               @submit.prevent="devSignIn"
             >
@@ -380,6 +405,14 @@ async function devSignIn() {
 }
 .auth-dev button:disabled { opacity: 0.55; }
 .auth-dev small { color: #6a7f9c; font-size: 8.5px; line-height: 1.55; }
+.auth-demo-loading {
+  padding: 11px 12px;
+  border: 1px solid #c7d5e9;
+  border-radius: 10px;
+  background: #f7faff;
+  color: #35506f;
+  font-size: 10px;
+}
 .auth-footer {
   display: flex;
   align-items: center;

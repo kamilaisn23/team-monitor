@@ -1,7 +1,10 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import GitHub from "next-auth/providers/github";
-import { isDevLoginEnabled } from "@/lib/dev-login";
+import {
+    isDemoSuperadminEnabled,
+    isDevLoginEnabled,
+} from "@/lib/dev-login";
 import { prisma } from "@/lib/prisma";
 import type { AppRole } from "@/types";
 
@@ -22,9 +25,21 @@ function isSuperadminLogin(login: string | undefined) {
 }
 
 const devLoginEnabled = isDevLoginEnabled();
+const demoSuperadminEnabled = isDemoSuperadminEnabled();
+
+function demoSuperadminLogin() {
+    return (process.env.SUPERADMIN_GITHUB_USERNAME ?? "")
+        .split(",")
+        .map((entry) => entry.trim())
+        .find(Boolean);
+}
 
 async function authorizeDevLogin(credentials: Partial<Record<string, unknown>>) {
-    const login = String(credentials?.login ?? "").trim();
+    // In demo mode, never trust a login supplied by the browser. The sole
+    // identity comes from the server-side superadmin configuration.
+    const login = demoSuperadminEnabled
+        ? demoSuperadminLogin() ?? ""
+        : String(credentials?.login ?? "").trim();
     if (!/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(login)) return null;
 
     if (isSuperadminLogin(login)) {
@@ -73,7 +88,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         GitHub({
             issuer: "https://github.com/login/oauth",
         }),
-        ...(devLoginEnabled
+        ...(devLoginEnabled || demoSuperadminEnabled
             ? [
                   Credentials({
                       id: "dev-github",

@@ -24,6 +24,7 @@ export const workspace = reactive({
   config: {
     githubConfigured: false,
     devLoginEnabled: false,
+    demoSuperadminEnabled: false,
     kerjabaikEnabled: true,
   },
   teams: [] as Team[],

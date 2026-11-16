@@ -10,6 +10,7 @@ export default defineRailway(() => {
     // Add newly provisioned variable names here before applying another plan.
     env: {
       AUTH_SECRET: preserve(),
+      AUTH_DEMO_SUPERADMIN: preserve(),
       AUTH_TRUST_HOST: preserve(),
       AUTH_URL: preserve(),
       DATABASE_URL: preserve(),

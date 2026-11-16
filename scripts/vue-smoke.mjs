@@ -430,34 +430,11 @@ assert.equal(document.querySelector(".data-table"), null);
 await router.push("/");
 await settle();
 assert.equal(router.currentRoute.value.path, "/");
-assert.ok(document.querySelector(".landing-page"), "Public landing page renders.");
-assert.equal(
-  document.querySelector(".lp-kicker"),
-  null,
-  "The old top hero label is removed.",
-);
-assert.equal(
-  document.querySelector(".lp-hero h1").textContent.replace(/\\s+/g, " ").trim(),
-  "Sistem pemantauan terintegrasi GitHub & GitLab",
-  "The hero headline uses the requested system description.",
-);
-assert.equal(
-  document.querySelector("#arsitektur-rbac"),
-  null,
-  "Landing page omits the crowded RBAC overview section.",
-);
-assert.equal(
-  document.querySelector(".lp-role-grid"),
-  null,
-  "Landing page does not render the role cards.",
-);
-assert.equal(
-  [...document.querySelectorAll(".landing-page a, .landing-page button")].some(
-    (element) => /demo|pratinjau/i.test(element.textContent || ""),
-  ),
-  false,
-  "Landing page has no demo or preview CTAs.",
-);
+assert.ok(document.querySelector(".page-content"), "Public root renders the dummy workspace.");
+assert.match(document.body.textContent, /Aditya Pratama/, "Dummy member data is shown on the public root.");
+await router.push("/landing");
+await settle();
+assert.ok(document.querySelector(".landing-page"), "Landing page remains available at /landing.");
 await router.push("/admin/settings");
 await settle();
 assert.equal(
@@ -465,10 +442,9 @@ assert.equal(
   "/login",
   "Unauthenticated private routes redirect.",
 );
-assert.equal(
-  document.querySelector(".auth-provider.github").disabled,
-  true,
-  "Placeholder OAuth cannot start login.",
+assert.ok(
+  document.querySelector(".auth-warning"),
+  "Login explains when no sign-in method is configured.",
 );
 assert.equal(
   document.querySelector(".auth-persona-box, .auth-preview-link"),
@@ -686,7 +662,7 @@ assert.equal(document.querySelector('.sync-button'), null);
 assert.equal(document.querySelector('[aria-label="Buka pusat perhatian tim"]'), null);
 await router.push('/reports');
 await settle();
-assert.ok(document.querySelector('.page-heading').textContent.includes('laporan Anda'));
+assert.ok(document.querySelector('.page-heading').textContent.includes('Aktivitas Anda'));
 workspace.teamId = 't1';
 await settle();
 assert.equal(router.currentRoute.value.path, '/reports');

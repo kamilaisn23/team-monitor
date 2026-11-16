@@ -7,7 +7,7 @@ export default auth((req) => {
 
   // Public routes
   // Public design preview contains only fictional, browser-local data.
-  if (pathname === '/preview') return NextResponse.next()
+  if (pathname === '/' || pathname === '/preview') return NextResponse.next()
   // API handlers enforce their own session/role or service-token access checks.
   // Keep JSON 401/403 responses intact for the Vue client.
   if (pathname.startsWith('/api/')) return NextResponse.next()
