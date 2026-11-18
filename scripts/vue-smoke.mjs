@@ -430,8 +430,18 @@ assert.equal(document.querySelector(".data-table"), null);
 await router.push("/");
 await settle();
 assert.equal(router.currentRoute.value.path, "/");
-assert.ok(document.querySelector(".page-content"), "Public root renders the dummy workspace.");
-assert.match(document.body.textContent, /Aditya Pratama/, "Dummy member data is shown on the public root.");
+assert.ok(document.querySelector(".landing-page"), "Public root renders the landing page.");
+assert.match(document.body.textContent, /Coba demo tanpa login/, "Landing page offers a login-free demo entry.");
+const demoEntry = [...document.querySelectorAll("button")].find((button) =>
+  button.textContent.includes("Coba demo tanpa login"),
+);
+assert.ok(demoEntry, "Demo entry button is present.");
+demoEntry.click();
+await settle();
+assert.equal(document.querySelectorAll("dialog .lp-demo-user").length, 3, "Demo entry offers three sample users.");
+assert.ok(document.querySelector('[aria-label="Masuk sebagai Rizky Ramadhan"]'), "Manager persona is available.");
+document.querySelector('dialog [aria-label="Tutup detail"]').click();
+await settle();
 await router.push("/landing");
 await settle();
 assert.ok(document.querySelector(".landing-page"), "Landing page remains available at /landing.");

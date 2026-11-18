@@ -17,8 +17,8 @@ const router = createRouter({
   routes: [
     {
       path: "/",
-      component: () => import("./pages/WorkspacePage.vue"),
-      meta: { preview: true },
+      component: () => import("./pages/Landing.vue"),
+      meta: { public: true, landing: true },
     },
     {
       path: "/landing",

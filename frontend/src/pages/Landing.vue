@@ -2,17 +2,26 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import Icon from "../components/Icon.vue";
+import Modal from "../components/Modal.vue";
+import { startDevLogin } from "../auth";
 
 const router = useRouter();
 const activePreviewTab = ref<"rebalance" | "attention" | "reports">("rebalance");
 const simulatedOverload = ref(2);
+const demoChooserOpen = ref(false);
+const demoPersonas = [
+  { username: "nadiaputri", name: "Nadia Putri", initial: "NP", description: "Admin · kelola anggota, tim, dan pengaturan" },
+  { username: "rizkyramadhan", name: "Rizky Ramadhan", initial: "RR", description: "Manager · pantau beban dan tindak lanjut isu" },
+  { username: "adityapratama", name: "Aditya Pratama", initial: "AP", description: "Developer · lihat tugas dan profil sendiri" },
+];
 
 function openDemo() {
-  openDemoAs("ADMIN");
+  demoChooserOpen.value = true;
 }
 
-function openDemoAs(role: "ADMIN" | "MANAGER" | "DEVELOPER") {
-  router.push({ path: "/dashboard", query: { demoRole: role } });
+async function openDemoAs(username: string) {
+  demoChooserOpen.value = false;
+  await startDevLogin(username, "/dashboard");
 }
 
 function openFullLogin() {
@@ -450,6 +459,30 @@ function openFullLogin() {
         </div>
       </div>
     </footer>
+
+    <Modal
+      v-if="demoChooserOpen"
+      title="Masuk tanpa login"
+      description="Pilih pengguna contoh untuk menjelajahi workspace dengan data dummy."
+    >
+      <div class="lp-demo-users">
+        <button
+          v-for="persona in demoPersonas"
+          :key="persona.username"
+          type="button"
+          class="lp-demo-user"
+          :aria-label="`Masuk sebagai ${persona.name}`"
+          @click="openDemoAs(persona.username)"
+        >
+          <span class="lp-demo-avatar">{{ persona.initial }}</span>
+          <span>
+            <strong>{{ persona.name }}</strong>
+            <small>{{ persona.description }}</small>
+          </span>
+          <Icon name="right" :size="16" />
+        </button>
+      </div>
+    </Modal>
   </div>
 </template>
 
@@ -539,6 +572,35 @@ function openFullLogin() {
 .lp-btn.ghost:hover { color: #4368ed; background: #f7faff; }
 .lp-btn.muted { background: #e9eef7; border-color: #d8e1ef; color: #5a6d88; }
 .lp-btn.muted:hover { background: #dfe7f3; color: #1c2d49; }
+.lp-demo-users { display: grid; gap: 8px; }
+.lp-demo-user {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.lp-demo-user:hover { border-color: #4368ed; background: #f7faff; }
+.lp-demo-user > span:nth-child(2) { flex: 1; display: grid; gap: 2px; }
+.lp-demo-user strong { font-size: 11px; }
+.lp-demo-user small { font-size: 9px; color: var(--muted); }
+.lp-demo-avatar {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #e8eefc;
+  color: #3557ba;
+  font-size: 11px;
+  font-weight: 700;
+}
 .lp-hero {
   position: relative;
   overflow: hidden;
