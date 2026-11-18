@@ -1,3 +1,4 @@
+import { nextTick } from "vue";
 import { createRouter, createWebHistory } from "vue-router";
 import {
   bootstrap,
@@ -10,6 +11,8 @@ import {
   setViewAs,
   viewRoleOptions,
 } from "./state";
+
+if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -78,6 +81,13 @@ const router = createRouter({
       meta: { public: true },
     },
   ],
+});
+router.afterEach(async () => {
+  await nextTick();
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+  const main = document.getElementById("main-content");
+  if (main) main.scrollTop = 0;
 });
 router.beforeEach(async (to, from) => {
   if (to.meta.preview) {

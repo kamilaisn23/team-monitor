@@ -478,8 +478,15 @@ workspace.session = {
   user: { name: "Admin Test", role: "ADMIN", isSuperadmin: false },
 };
 includePendingMember = true;
+const mainContent = document.getElementById("main-content");
+mainContent.scrollTop = 480;
 await router.push("/admin/members");
 await settle();
+assert.equal(
+  mainContent.scrollTop,
+  0,
+  "Switching workspace pages resets the scroll container to the top.",
+);
 const approvalBanner = document.querySelector(".pending-approval-banner");
 assert.ok(approvalBanner, "Admins see an alert for unassigned accounts.");
 assert.ok(approvalBanner.textContent.includes("1"));

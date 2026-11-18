@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import Icon from "../components/Icon.vue";
 import Modal from "../components/Modal.vue";
@@ -9,6 +9,10 @@ const router = useRouter();
 const activePreviewTab = ref<"rebalance" | "attention" | "reports">("rebalance");
 const simulatedOverload = ref(2);
 const demoChooserOpen = ref(false);
+const scrollProgress = ref(0);
+const revealReady = ref(false);
+let revealObserver: IntersectionObserver | undefined;
+let revealFallback: ReturnType<typeof setTimeout> | undefined;
 const demoPersonas = [
   { username: "nadiaputri", name: "Nadia Putri", initial: "NP", description: "Admin · kelola anggota, tim, dan pengaturan" },
   { username: "rizkyramadhan", name: "Rizky Ramadhan", initial: "RR", description: "Manager · pantau beban dan tindak lanjut isu" },
@@ -27,10 +31,48 @@ async function openDemoAs(username: string) {
 function openFullLogin() {
   router.push("/login");
 }
+function updateScrollProgress() {
+  const max = document.documentElement.scrollHeight - window.innerHeight;
+  scrollProgress.value = max > 0 ? Math.min(100, Math.round((window.scrollY / max) * 100)) : 0;
+}
+onMounted(() => {
+  updateScrollProgress();
+  window.addEventListener("scroll", updateScrollProgress, { passive: true });
+  window.addEventListener("resize", updateScrollProgress);
+  const targets = document.querySelectorAll<HTMLElement>(".lp-reveal");
+  revealReady.value = true;
+  revealFallback = setTimeout(() => {
+    targets.forEach((el) => el.classList.add("is-visible"));
+  }, 900);
+  if (!("IntersectionObserver" in window)) {
+    targets.forEach((el) => el.classList.add("is-visible"));
+    return;
+  }
+  revealObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add("is-visible");
+        revealObserver?.unobserve(entry.target);
+      });
+    },
+    { threshold: 0.01, rootMargin: "0px 0px -20px 0px" },
+  );
+  targets.forEach((el) => revealObserver?.observe(el));
+});
+onBeforeUnmount(() => {
+  window.removeEventListener("scroll", updateScrollProgress);
+  window.removeEventListener("resize", updateScrollProgress);
+  revealObserver?.disconnect();
+  clearTimeout(revealFallback);
+});
 </script>
 
 <template>
-  <div class="landing-page">
+  <div class="landing-page" :class="{ 'reveal-ready': revealReady }">
+    <div class="lp-scroll-progress" aria-hidden="true">
+      <span :style="{ width: scrollProgress + '%' }"></span>
+    </div>
     <header class="lp-nav">
       <div class="lp-container lp-nav-inner">
         <RouterLink to="/" class="lp-brand" aria-label="Team Monitor beranda">
@@ -86,7 +128,7 @@ function openFullLogin() {
           <text x="110" y="70" fill="#94a3b8" font-size="9" font-family="monospace" letter-spacing="1.5">GIT_REMOTE: GITHUB.COM/ORG/CORE</text>
           <text x="900" y="70" fill="#94a3b8" font-size="9" font-family="monospace" letter-spacing="1.5">WEBHOOK: GITLAB_V4/PUSH_EVENT</text>
           <text x="110" y="420" fill="#94a3b8" font-size="9" font-family="monospace" letter-spacing="1.5">RBAC_AUTH: TOKEN_BEARER_VALID</text>
-          <text x="930" y="420" fill="#94a3b8" font-size="9" font-family="monospace" letter-spacing="1.5">STATUS: SYNC_HEALTHY (100%)</text>
+          <text x="930" y="420" fill="#94a3b8" font-size="9" font-family="monospace" letter-spacing="1.5">MODE: DATA CONTOH</text>
         </svg>
 
         <div class="lp-container lp-hero-inner">
@@ -112,9 +154,9 @@ function openFullLogin() {
           </div>
 
           <div class="lp-hero-stats">
-            <span><Icon name="checkcircle" :size="15" /> <strong>12 rekayasawan</strong> aktif terintegrasi</span>
-            <span><Icon name="checkcircle" :size="15" /> <strong>51 isu</strong> terpantau real-time</span>
-            <span><Icon name="checkcircle" :size="15" /> <strong>3 divisi</strong> Product, Infra, QA</span>
+            <span><Icon name="checkcircle" :size="15" /> <strong>8 anggota</strong> dalam data contoh</span>
+            <span><Icon name="checkcircle" :size="15" /> <strong>10 isu</strong> dalam data contoh</span>
+            <span><Icon name="checkcircle" :size="15" /> <strong>3 tim</strong> Product, Platform, Quality</span>
           </div>
 
           <div class="lp-showcase" id="cockpit">
@@ -272,7 +314,7 @@ function openFullLogin() {
         </div>
       </section>
 
-      <section id="arsitektur-rbac" class="lp-section white">
+      <section id="arsitektur-rbac" class="lp-section white lp-reveal">
         <div class="lp-container">
           <div class="lp-section-heading">
             <span>Arsitektur &amp; hak akses sistem</span>
@@ -284,7 +326,7 @@ function openFullLogin() {
           </div>
 
           <div class="lp-role-grid">
-            <article class="lp-role-card admin">
+            <article class="lp-role-card admin lp-reveal">
               <div class="lp-role-top">
                 <span class="lp-role-icon"><Icon name="shield" :size="20" /></span>
                 <small>Role: admin</small>
@@ -297,12 +339,12 @@ function openFullLogin() {
                 <li><Icon name="check" :size="13" /><span><strong>/admin/repositories:</strong> tag repo GitHub/GitLab ke tim atau abaikan.</span></li>
                 <li><Icon name="check" :size="13" /><span><strong>POST /api/sync:</strong> picu sinkronisasi manual data isu.</span></li>
               </ul>
-              <button class="lp-role-action blue" @click="openDemo">
+              <button class="lp-role-action blue" @click="openDemoAs('nadiaputri')">
                 Coba sebagai admin <Icon name="right" :size="14" />
               </button>
             </article>
 
-            <article class="lp-role-card manager">
+            <article class="lp-role-card manager lp-reveal">
               <span class="lp-role-flag">Fokus utama sistem</span>
               <div class="lp-role-top">
                 <span class="lp-role-icon"><Icon name="users" :size="20" /></span>
@@ -316,12 +358,12 @@ function openFullLogin() {
                 <li><Icon name="check" :size="13" /><span><strong>Rebalance:</strong> pindahkan tiket dari rekayasawan overload.</span></li>
                 <li><Icon name="check" :size="13" /><span><strong>/members/:id:</strong> profil lengkap, heatmap, dan catatan 1-on-1 privat.</span></li>
               </ul>
-              <button class="lp-role-action primary" @click="openDemoAs('MANAGER')">
+              <button class="lp-role-action primary" @click="openDemoAs('rizkyramadhan')">
                 Coba sebagai Manager <Icon name="right" :size="14" />
               </button>
             </article>
 
-            <article class="lp-role-card developer">
+            <article class="lp-role-card developer lp-reveal">
               <div class="lp-role-top">
                 <span class="lp-role-icon"><Icon name="usercheck" :size="20" /></span>
                 <small>Role: developer</small>
@@ -334,12 +376,12 @@ function openFullLogin() {
                 <li><Icon name="check" :size="13" /><span><strong>Laporan personal:</strong> unduh rekap CSV produktivitas mandiri.</span></li>
                 <li><Icon name="check" :size="13" /><span><strong>Proteksi privasi:</strong> tidak dapat melihat catatan 1-on-1 manajer.</span></li>
               </ul>
-              <button class="lp-role-action emerald" @click="openDemoAs('DEVELOPER')">
+              <button class="lp-role-action emerald" @click="openDemoAs('adityapratama')">
                 Coba sebagai Developer <Icon name="right" :size="14" />
               </button>
             </article>
 
-            <article class="lp-role-card unassigned">
+            <article class="lp-role-card unassigned lp-reveal">
               <div class="lp-role-top">
                 <span class="lp-role-icon"><Icon name="clock" :size="20" /></span>
                 <small>Role: unassigned</small>
@@ -359,7 +401,7 @@ function openFullLogin() {
         </div>
       </section>
 
-      <section id="fitur" class="lp-section alt">
+      <section id="fitur" class="lp-section alt lp-reveal">
         <div class="lp-container">
           <div class="lp-section-heading">
             <span>Fitur utama sistem</span>
@@ -400,7 +442,7 @@ function openFullLogin() {
         </div>
       </section>
 
-      <section id="perbandingan" class="lp-section white">
+      <section id="perbandingan" class="lp-section white lp-reveal">
         <div class="lp-container narrow">
           <div class="lp-section-heading">
             <span>Efisiensi waktu manajemen</span>
@@ -494,6 +536,30 @@ function openFullLogin() {
   background: #edf2fa;
   color: var(--ink);
 }
+.lp-scroll-progress {
+  position: fixed;
+  inset: 0 0 auto;
+  height: 3px;
+  z-index: 60;
+  pointer-events: none;
+}
+.lp-scroll-progress span {
+  display: block;
+  height: 100%;
+  background: #4368ed;
+  transition: width 0.12s linear;
+}
+.lp-reveal {
+  transition: opacity 0.42s ease, translate 0.42s ease;
+}
+.reveal-ready .lp-reveal:not(.is-visible) {
+  opacity: 0;
+  translate: 0 14px;
+}
+.reveal-ready .lp-reveal.is-visible {
+  opacity: 1;
+  translate: 0 0;
+}
 .lp-container {
   width: min(1180px, calc(100% - 40px));
   margin-inline: auto;
@@ -529,7 +595,7 @@ function openFullLogin() {
 .lp-brand-copy strong { font-size: 15px; letter-spacing: -0.3px; color: #111d38; }
 .lp-brand-copy small {
   color: #4368ed;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.9px;
   text-transform: uppercase;
@@ -560,6 +626,7 @@ function openFullLogin() {
   white-space: nowrap;
   transition: 0.18s ease;
 }
+.lp-btn:active { transform: translateY(1px); }
 .lp-btn.small { min-height: 34px; padding: 6px 10px; font-size: 10px; }
 .lp-btn.large { min-height: 45px; padding: 11px 18px; font-size: 12px; border-radius: 12px; }
 .lp-btn.primary { background: #4368ed; color: #fff; box-shadow: 0 7px 18px #4368ed2e; }
@@ -585,8 +652,10 @@ function openFullLogin() {
   color: var(--ink);
   text-align: left;
   cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
 }
-.lp-demo-user:hover { border-color: #4368ed; background: #f7faff; }
+.lp-demo-user:hover { border-color: #4368ed; background: #f7faff; transform: translateX(2px); }
+.lp-demo-user:active { transform: translateX(2px) scale(0.99); }
 .lp-demo-user > span:nth-child(2) { flex: 1; display: grid; gap: 2px; }
 .lp-demo-user strong { font-size: 11px; }
 .lp-demo-user small { font-size: 9px; color: var(--muted); }
@@ -887,7 +956,11 @@ function openFullLogin() {
   background: #f8fbff;
   transition: 0.18s ease;
 }
-.lp-role-card:hover { border-color: #a8bde2; box-shadow: 0 10px 28px #1c2d4910; }
+.lp-role-card.lp-reveal { transition: opacity 0.42s ease, translate 0.42s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease; }
+.lp-role-card:hover { border-color: #a8bde2; box-shadow: 0 10px 28px #1c2d4910; transform: translateY(-3px); }
+.lp-role-grid .lp-reveal:nth-child(2) { transition-delay: 60ms; }
+.lp-role-grid .lp-reveal:nth-child(3) { transition-delay: 120ms; }
+.lp-role-grid .lp-reveal:nth-child(4) { transition-delay: 180ms; }
 .lp-role-card.manager { background: #fff; border: 2px solid #4368ed; box-shadow: 0 12px 30px #4368ed17; }
 .lp-role-flag {
   position: absolute;
@@ -932,7 +1005,7 @@ function openFullLogin() {
 .lp-role-card h3 { color: #111d38; font-size: 14px; }
 .lp-role-desc { min-height: 45px; margin-top: 5px; color: var(--muted); font-size: 10px; line-height: 1.65; }
 .lp-role-card ul { display: grid; gap: 8px; margin: 14px 0 0; padding: 0; list-style: none; }
-.lp-role-card li { display: flex; align-items: flex-start; gap: 6px; color: #1c2d49; font-size: 9.5px; line-height: 1.6; }
+.lp-role-card li { display: flex; align-items: flex-start; gap: 6px; color: #1c2d49; font-size: 10.5px; line-height: 1.6; }
 .lp-role-card li svg { margin-top: 2px; color: #4368ed; flex: 0 0 auto; }
 .lp-role-card.manager li svg, .lp-role-card.developer li svg { color: #2f9a7c; }
 .lp-role-card.unassigned li svg { color: #b07b25; }
@@ -947,9 +1020,11 @@ function openFullLogin() {
   margin-top: auto;
   padding: 7px 9px;
   border-radius: 9px;
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 750;
+  transition: background 0.18s ease, transform 0.18s ease;
 }
+.lp-role-action:active { transform: translateY(1px); }
 .lp-role-card .lp-role-action { margin-top: 18px; }
 .lp-role-action.blue { border: 1px solid #bcd0f4; background: #eaf1ff; color: #4368ed; }
 .lp-role-action.blue:hover { background: #dde9ff; }
@@ -966,6 +1041,12 @@ function openFullLogin() {
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 3px 10px #1c2d4908;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.lp-feature-grid article:hover {
+  transform: translateY(-3px);
+  border-color: #c6d6f2;
+  box-shadow: 0 12px 28px #1c2d4914;
 }
 .lp-feature-grid article > span {
   width: 39px;
@@ -978,7 +1059,7 @@ function openFullLogin() {
 .lp-feature-grid .rose { background: #fff0f2; color: #b54d61; }
 .lp-feature-grid .emerald { background: #e8f7f1; color: #2f8f72; }
 .lp-feature-grid h3 { margin-top: 12px; color: #1c2d49; font-size: 14px; }
-.lp-feature-grid p { margin-top: 7px; color: var(--muted); font-size: 10.5px; line-height: 1.75; }
+.lp-feature-grid p { margin-top: 7px; color: var(--muted); font-size: 11.5px; line-height: 1.75; }
 .lp-compare-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 16px; background: #fff; box-shadow: 0 5px 18px #1c2d4908; }
 .lp-compare { width: 100%; min-width: 620px; border-collapse: collapse; text-align: left; }
 .lp-compare th {
@@ -986,7 +1067,7 @@ function openFullLogin() {
   border-bottom: 1px solid var(--line);
   background: #f8fbff;
   color: #586d8c;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.55px;
   text-transform: uppercase;
@@ -996,7 +1077,7 @@ function openFullLogin() {
   padding: 15px 20px;
   border-bottom: 1px solid var(--line);
   color: #1c2d49;
-  font-size: 10.5px;
+  font-size: 11.5px;
   line-height: 1.6;
 }
 .lp-compare tr:last-child td { border-bottom: 0; }
@@ -1007,14 +1088,14 @@ function openFullLogin() {
 .lp-footer-inner { display: flex; align-items: center; justify-content: space-between; gap: 25px; }
 .lp-footer strong { display: flex; align-items: center; gap: 7px; color: #fff; font-size: 12px; }
 .lp-footer strong svg { color: #4368ed; }
-.lp-footer p { max-width: 620px; margin-top: 5px; color: #8497b2; font-size: 9.5px; line-height: 1.6; }
+.lp-footer p { max-width: 620px; margin-top: 5px; color: #8497b2; font-size: 10.5px; line-height: 1.6; }
 .lp-footer-actions { display: flex; gap: 7px; flex: 0 0 auto; }
 .lp-footer-actions button {
   padding: 6px 10px;
   border-radius: 7px;
   background: #ffffff12;
   color: #c4d1e3;
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 700;
 }
 .lp-footer-actions button:first-child { background: #3b62e030; color: #a9bdff; }

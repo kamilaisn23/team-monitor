@@ -7,9 +7,11 @@ import { workspace, signOut } from "../state";
 import { api } from "../api";
 import type { Session } from "../types";
 const router = useRouter(),
-  error = ref("");
+  error = ref(""),
+  checking = ref(false);
 let timer: ReturnType<typeof setInterval> | undefined;
 async function refresh() {
+  checking.value = true;
   try {
     const { csrfToken } = await api<{ csrfToken: string }>("/api/auth/csrf");
     const session = await api<Session | null>("/api/auth/session", {
@@ -22,6 +24,8 @@ async function refresh() {
       router.push("/dashboard");
   } catch (e) {
     error.value = (e as Error).message;
+  } finally {
+    checking.value = false;
   }
 }
 onMounted(() => {
@@ -71,8 +75,10 @@ async function logout() {
       </div>
       <p v-if="error" class="validation-error" role="alert">{{ error }}</p>
       <div class="pending-actions">
-        <button class="button primary" @click="refresh">
-          <Icon name="refresh" :size="17" />Periksa akses
+        <button class="button primary" :disabled="checking" @click="refresh">
+          <Icon name="refresh" :size="17" :class="{ spinning: checking }" />{{
+            checking ? "Memeriksa akses…" : "Periksa akses"
+          }}
         </button>
         <button class="text-button" @click="logout">Keluar dari akun</button>
       </div>

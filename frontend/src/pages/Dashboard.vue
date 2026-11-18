@@ -459,6 +459,7 @@ const scopeName = computed(
       </div>
       <div v-if="loading && !response" class="loading-state">
         <Icon name="refresh" class="spinning" />Memuat kapasitas tim…
+        <div class="loading-skeleton" aria-hidden="true"><i></i><i></i><i></i></div>
       </div>
       <template v-else-if="response?.data.length"
         ><div v-if="view === 'list'" class="table-scroll">
