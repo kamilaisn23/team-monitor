@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -101,13 +102,85 @@ async function main() {
     }
   }
 
+  const followUpDefs = [
+    { issueId: "demo-issue-1", status: "following_up", note: "Memastikan validasi sisi server mencakup email duplikat.", owner: members[2], actor: members[1], updatedAt: daysAgo(1), earlier: { status: "unreviewed", note: "", owner: null, actor: members[1], changedAt: daysAgo(8) } },
+    { issueId: "demo-issue-2", status: "reviewed", note: "Audit aksesibilitas selesai; kontras warna dan label sudah diperbaiki.", owner: members[3], actor: members[0], updatedAt: daysAgo(2) },
+    { issueId: "demo-issue-3", status: "unreviewed", note: "Menunggu prioritas dari Product sebelum mulai.", owner: null, actor: members[1], updatedAt: daysAgo(2) },
+    { issueId: "demo-issue-4", status: "following_up", note: "Retry worker sudah di-deploy ke staging, menunggu observasi.", owner: members[4], actor: members[1], updatedAt: daysAgo(1), earlier: { status: "unreviewed", note: "", owner: null, actor: members[1], changedAt: daysAgo(10) } },
+    { issueId: "demo-issue-6", status: "reviewed", note: "Skenario regresi ditambahkan dan pipeline kembali hijau.", owner: members[6], actor: members[0], updatedAt: daysAgo(3) },
+    { issueId: "demo-issue-10", status: "following_up", note: "Belum ada assignee; akan dialihkan ke tim Platform.", owner: members[1], actor: members[0], updatedAt: daysAgo(1) },
+  ];
+  const followUpIssueIds = followUpDefs.map((entry) => entry.issueId);
+  await prisma.followUpHistory.deleteMany({ where: { issueId: { in: followUpIssueIds } } });
+  for (const entry of followUpDefs) {
+    const revision = randomUUID();
+    const fields = {
+      status: entry.status,
+      note: entry.note,
+      ownerId: entry.owner?.id ?? null,
+      ownerName: entry.owner?.name ?? null,
+      actorId: entry.actor.id,
+      actorName: entry.actor.name,
+    };
+    await prisma.followUp.upsert({
+      where: { issueId: entry.issueId },
+      update: { ...fields, revision, updatedAt: entry.updatedAt },
+      create: { issueId: entry.issueId, ...fields, revision, updatedAt: entry.updatedAt },
+    });
+    await prisma.followUpHistory.create({
+      data: { ...fields, issueId: entry.issueId, revision, changedAt: entry.updatedAt, origin: "edit" },
+    });
+    if (entry.earlier) {
+      const earlier = entry.earlier;
+      await prisma.followUpHistory.create({
+        data: {
+          issueId: entry.issueId,
+          revision: randomUUID(),
+          status: earlier.status,
+          note: earlier.note,
+          ownerId: earlier.owner?.id ?? null,
+          ownerName: earlier.owner?.name ?? null,
+          actorId: earlier.actor.id,
+          actorName: earlier.actor.name,
+          changedAt: earlier.changedAt,
+          origin: "edit",
+        },
+      });
+    }
+  }
+
+  const noteDefs = [
+    { id: "demo-note-1", member: members[2], author: members[1], date: daysAgo(4), focusArea: "Beban kerja dan prioritas isu", actionItems: "Selesaikan validasi login minggu ini; minta review sebelum PR digabung.", sentiment: "NEEDS_SUPPORT" },
+    { id: "demo-note-2", member: members[3], author: members[1], date: daysAgo(7), focusArea: "Aksesibilitas dashboard", actionItems: "Lanjutkan audit kontras warna dan uji keyboard navigation.", sentiment: "POSITIVE" },
+    { id: "demo-note-3", member: members[4], author: members[1], date: daysAgo(5), focusArea: "Stabilitas endpoint sinkronisasi", actionItems: "Tambahkan metrik latensi dan alert untuk worker staging.", sentiment: "NEUTRAL" },
+    { id: "demo-note-4", member: members[5], author: members[1], date: daysAgo(11), focusArea: "Retry worker dan penanganan timeout", actionItems: "Dokumentasikan strategi backoff sebelum rilis berikutnya.", sentiment: "POSITIVE" },
+    { id: "demo-note-5", member: members[6], author: members[0], date: daysAgo(6), focusArea: "Cakupan pengujian regresi", actionItems: "Tambah skenario untuk alur login dan sinkronisasi.", sentiment: "NEUTRAL" },
+    { id: "demo-note-6", member: members[7], author: members[0], date: daysAgo(9), focusArea: "Dokumentasi hasil pengujian", actionItems: "Perbarui laporan cakupan dan bagikan ke tim Product.", sentiment: "POSITIVE" },
+  ];
+  for (const entry of noteDefs) {
+    const fields = {
+      memberId: entry.member.id,
+      authorId: entry.author.id,
+      authorName: entry.author.name,
+      date: entry.date,
+      focusArea: entry.focusArea,
+      actionItems: entry.actionItems,
+      sentiment: entry.sentiment,
+    };
+    await prisma.oneOnOneNote.upsert({
+      where: { id: entry.id },
+      update: fields,
+      create: { id: entry.id, ...fields },
+    });
+  }
+
   await prisma.syncJob.upsert({
     where: { id: "demo-seed" },
     update: { status: "success", finishedAt: new Date(), summary: { seeded: true } },
     create: { id: "demo-seed", status: "success", finishedAt: new Date(), summary: { seeded: true } },
   });
 
-  console.log(`[seed-demo] Demo data ready (${members.length} members, ${repos.length} repos, ${issueDefs.length} issues).`);
+  console.log(`[seed-demo] Demo data ready (${members.length} members, ${repos.length} repos, ${issueDefs.length} issues, ${followUpDefs.length} follow-ups, ${noteDefs.length} notes).`);
 }
 
 main()
